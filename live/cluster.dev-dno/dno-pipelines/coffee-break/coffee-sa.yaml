@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: coffee-bot
+secrets:
+  - name: coffee-ssh-new

@@ -1,0 +1,30 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: execute-coffee-break
+spec:
+  results:
+    - description: The groups
+      name: print-python-result
+      type: string
+    - description: Participants emails
+      name: participants-emails
+      type: string
+  steps:
+    - image: registry.redhat.io/ubi8/python-311
+      name: execute-coffee
+      script: >
+        #!/usr/bin/env bash
+
+        python /workspace/clone-directory/breaks.py | tee
+        $(results.print-python-result.path)
+
+        echo -e "\n\nRecipients:"   
+
+        python /workspace/clone-directory/recipients_mails.py | tee
+        $(results.participants-emails.path)
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532 # needed for permissions in repo that 'git-clone' task cloned
+  workspaces:
+    - name: clone-directory

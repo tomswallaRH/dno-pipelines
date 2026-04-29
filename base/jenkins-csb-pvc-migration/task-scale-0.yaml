@@ -1,0 +1,49 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: scale-0
+spec:
+  params:
+  - description: kubeconfig file name
+    name: filename
+    type: string
+  - description: project name
+    name: project
+    type: string
+  - description: tenant name
+    name: tenant
+    type: string
+  - description: name of the destination cluster
+    name: dest_cluster
+    type: string
+  - description: name of the source cluster
+    name: source_cluster
+    type: string
+  steps:
+  - image: quay.io/openshift/origin-cli:4.20
+    name: dest-scale-0
+    resources: {}
+    script: |
+      #!/usr/bin/env bash
+
+      set -euo pipefail
+
+      echo "Assuming deployment of jenkins-csb is scaled to 0 on destination cluster"
+  #     trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
+  #     export KUBECONFIG="$(workspaces.input.path)/$(inputs.params.dest_cluster)/$(inputs.params.filename)"
+  #     oc scale --replicas=0 dc/$(inputs.params.tenant)-jenkins -n $(inputs.params.project)
+  #     echo "DeploymentConfig $(inputs.params.tenant)-jenkins is scaled to 0 on project $(inputs.params.project)" in cluster: $(inputs.params.dest_cluster)
+  - image: quay.io/openshift/origin-cli:4.20
+    name: source-scale-0
+    resources: {}
+    script: |
+      #!/usr/bin/env bash
+      
+      set -euo pipefail
+      trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
+      export KUBECONFIG="$(workspaces.input.path)/$(inputs.params.source_cluster)/$(inputs.params.filename)"
+      oc scale --replicas=0 dc/$(inputs.params.tenant)-jenkins -n $(inputs.params.project)
+      echo "DeploymentConfig $(inputs.params.tenant)-jenkins is scaled to 0 on project $(inputs.params.project)" in current cluster "($(inputs.params.source_cluster))"
+  workspaces:
+  - name: input
+    readOnly: true

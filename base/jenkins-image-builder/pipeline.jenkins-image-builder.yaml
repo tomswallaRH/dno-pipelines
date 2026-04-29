@@ -1,0 +1,116 @@
+﻿apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: jenkins-image-builder
+spec:
+  finally:
+    - name: clean-pvc
+      taskRef:
+        kind: Task
+        name: clean-pvc
+      workspaces:
+        - name: clone-directory
+          workspace: shared-workspace
+  params:
+    - description: New jenkins-csb version
+      name: new-version
+      type: string
+    - description: Old jenkins-csb version
+      name: old-version
+      type: string
+  tasks:
+    - name: clone-jenkins-csb
+      params:
+        - name: url
+          value: 'git@gitlab.cee.redhat.com:ccit/jenkins-csb.git'
+        - name: revision
+          value: main
+        - name: refspec
+          value: ''
+        - name: submodules
+          value: 'true'
+        - name: depth
+          value: '1'
+        - name: sslVerify
+          value: 'true'
+        - name: crtFileName
+          value: ca-bundle.crt
+        - name: subdirectory
+          value: ''
+        - name: sparseCheckoutDirectories
+          value: ''
+        - name: deleteExisting
+          value: 'true'
+        - name: httpProxy
+          value: ''
+        - name: httpsProxy
+          value: ''
+        - name: noProxy
+          value: ''
+        - name: verbose
+          value: 'true'
+        - name: gitInitImage
+          value: >-
+            registry.redhat.io/openshift-pipelines/pipelines-git-init-rhel8@sha256:681dc67d2aa1dbecbf65ecd229c8b181dae533bf14b07543c1aeead36aed2198
+        - name: userHome
+          value: /home/git
+      taskRef:
+        kind: ClusterTask
+        name: git-clone
+      workspaces:
+        - name: ssh-directory
+          workspace: gitlab-jenkins-csb-token
+        - name: output
+          workspace: shared-workspace
+    - name: buildah
+      params:
+        - name: IMAGE
+          value: images.paas.redhat.com/jenkins-csb/sfathii
+        - name: BUILDER_IMAGE
+          value: >-
+            registry.redhat.io/rhel8/buildah@sha256:3c2ea396a114221575a4031d90d28c43563f7b96288374e0ba8b22de3ed97b5a
+        - name: STORAGE_DRIVER
+          value: vfs
+        - name: DOCKERFILE
+          value: $(workspaces.source.path)/image-base/Dockerfile
+        - name: CONTEXT
+          value: $(workspaces.source.path)
+        - name: TLSVERIFY
+          value: 'true'
+        - name: FORMAT
+          value: oci
+        - name: BUILD_EXTRA_ARGS
+          value: '--build-arg JENKINS_VERSION=$(params.new-version)'
+        - name: PUSH_EXTRA_ARGS
+          value: ''
+        - name: SKIP_PUSH
+          value: 'false'
+      runAfter:
+        - update-jenkins-csb-version
+      taskRef:
+        kind: ClusterTask
+        name: buildah
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: dockerconfig
+          workspace: images-paas-secret
+    - name: update-jenkins-csb-version
+      params:
+        - name: new-version
+          value: $(params.new-version)
+        - name: old-version
+          value: $(params.old-version)
+      runAfter:
+        - clone-jenkins-csb
+      taskRef:
+        kind: Task
+        name: update-jenkins-csb-version
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+  workspaces:
+    - name: shared-workspace
+    - name: gitlab-jenkins-csb-token
+    - name: jenkins-csb-customers-token
+    - name: images-paas-secret

@@ -1,0 +1,6 @@
+- op: replace
+  path: /spec/tasks/0/params/2/value
+  value: "sfathii@redhat.com"
+- op: replace
+  path: /spec/tasks/0/params/3/value
+  value: "$(tasks.generate-groups.results.participants-emails)"

@@ -1,0 +1,61 @@
+apiVersion: v1
+data:
+  rsync.yaml: "--- \nkind: Template \napiVersion: template.openshift.io/v1  \nmetadata:\n  name: ${INSTANCE}-jenkins-rsync\n
+    \ annotations:\n    openshift.io/display-name: ${PROJECT}\n    description: rsync
+    pod between openshift projects\n    iconClass: icon-jenkins\n    tags: sync,jenkins\n
+    \   template.openshift.io/long-description: This template deploys an oc pod that
+    syncs\n      /var/lib/jenkins/jobs to another pod in a different ocp cluster\n
+    \   template.openshift.io/provider-display-name: Red Hat, Inc.\n    template.openshift.io/support-url:
+    https://access.redhat.com\nobjects:   \n- apiVersion: v1\n  kind: Pod\n  metadata:\n
+    \   name: ${INSTANCE}-jenkins-rsync\n    namespace: ${PROJECT}\n    labels:\n
+    \     app: rsync\n      pvc: ${SOURCE_PVC}\n  spec:\n    containers:\n      -
+    name: rsync\n        image: quay.io/openshift/origin-cli:4.20\n        imagePullPolicy:
+    Always\n        command:\n        - \"oc\"\n        args:\n        - \"--namespace=${DEST_PROJECT}\"\n
+    \       - \"--kubeconfig=/run/secrets/kube/config\"\n        - \"--insecure-skip-tls-verify=true\"\n
+    \       - rsync\n        - \"--compress=true\"\n        - \"--quiet=true\"\n        - \"--progress=true\"\n
+    \       - \"--delete=true\"\n        - \"--strategy=rsync\"\n        - \"/var/lib/jenkins/jobs/\"\n
+    \       - \"${DEST_POD}:/var/lib/jenkins/jobs/\"\n        resources:\n          limits:\n
+    \           cpu: '4'\n            memory: 16Gi\n          requests:\n            cpu:
+    '2'\n            memory: 6Gi\n        securityContext:\n          capabilities:\n
+    \           drop:\n              - KILL\n              - MKNOD\n              -
+    SETGID\n              - SETUID\n          privileged: false\n        terminationMessagePath:
+    /dev/termination-log\n        terminationMessagePolicy: File\n        volumeMounts:\n
+    \         - mountPath: /var/lib/jenkins\n            name: jenkins-data\n          -
+    mountPath: /run/secrets/kube\n            name: kubeconfig\n            readOnly:
+    true\n    dnsPolicy: ClusterFirst\n    nodeSelector:\n      node-role.kubernetes.io/worker:
+    ''\n    priority: 0\n    restartPolicy: OnFailure\n    serviceAccount: default\n
+    \   serviceAccountName: default\n    terminationGracePeriodSeconds: 30\n    tolerations:\n
+    \     - effect: NoSchedule\n        key: node.kubernetes.io/memory-pressure\n
+    \       operator: Exists\n    volumes:\n      - name: jenkins-data\n        persistentVolumeClaim:\n
+    \         claimName: ${SOURCE_PVC}\n      - name: kubeconfig\n        secret:\n
+    \         defaultMode: 420\n          secretName: ${INSTANCE}-kubeconfig-rsync\nparameters:\n-
+    description: Jenkins-csb instance name\n  name: INSTANCE\n  required: true\n  value:
+    'undefined'\n- description: Project name\n  name: PROJECT\n  required: true\n-
+    description: Dest Project name\n  name: DEST_PROJECT\n  required: true\n-
+    description: Jenkins-csb pod running in destination cluster under the same project\n  name: DEST_POD\n  required: true\n  value: 'undefined'\n- description:
+    PVC name of the source instance\n  name: SOURCE_PVC\n  required: true\n  value:
+    'undefined'"
+  secret.yaml: "---\n\nkind: Template\n\napiVersion: template.openshift.io/v1\n\nmetadata:\n  name: ${INSTANCE}-jenkins-rsync\n
+    \ annotations:\n    openshift.io/display-name: ${INSTANCE}-jenkins-rsync\n    description:
+    rsync pod between openshift projects\n    iconClass: icon-jenkins\n    tags: sync,jenkins\n
+    \   template.openshift.io/long-description: This template deploys an oc pod that
+    syncs\n      /var/lib/jenkins/jobs to another pod in a different ocp cluster\n
+    \   template.openshift.io/provider-display-name: Red Hat, Inc.\n    template.openshift.io/support-url:
+    https://access.redhat.com\nobjects: \n- apiVersion: v1\n  kind: Secret\n  metadata:\n
+    \   name: ${INSTANCE}-kubeconfig-rsync\n  type: Opaque\n  stringData:\n    config:
+    |-\n      apiVersion: v1\n      clusters:\n      - cluster:\n          server:
+    https://api.${DEST_OCP}.prod.psi.redhat.com:6443\n        name: api-${DEST_OCP}-prod-psi-redhat-com:6443\n
+    \     contexts:\n      - context:\n          cluster: api-${DEST_OCP}-prod-psi-redhat-com:6443\n
+    \         namespace: ${PROJECT}\n          user: ${USERNAME}/${DEST_OCP}\n        name:
+    ${DEST_OCP}\n      current-context: ${DEST_OCP}\n      kind: Config\n      preferences:
+    {}\n      users:\n      - name: ${USERNAME}/${DEST_OCP}\n        user:\n          token:
+    ${TOKEN}\nparameters:  \n- description: Jenkins-csb instance name\n  name: INSTANCE\n
+    \ required: true\n  value: 'undefined'\n- description: Project name\n  name: PROJECT\n
+    \ required: true\n  value: 'undefined'\n- description: User with permissions to
+    openshift\n  name: USERNAME\n  required: true\n  value: 'undefined'\n- description:
+    Token of the user to log into openshift\n  name: TOKEN\n  required: true\n  value:
+    'undefined'\n- description: Destination OCP short name\n  name: DEST_OCP\n  required:
+    true\n  value: 'undefined'"
+kind: ConfigMap
+metadata:
+  name: rsync-template

@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - gitlab-monitor-pipeline.pipeline.yaml
+  - gitlab-monitor-pipeline.eventlistener.yaml
+  - gitlab-monitor-pipeline.triggerbinding.yaml
+  - gitlab-monitor-pipeline.triggertemplate.yaml
+  - run-gitlab-monitor.task.yaml
+  - sendmail.task.yaml 

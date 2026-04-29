@@ -1,0 +1,6 @@
+- op: replace
+  path: /spec/params/0/default
+  value: "main"
+- op: replace
+  path: /spec/params/1/default
+  value: "dno"

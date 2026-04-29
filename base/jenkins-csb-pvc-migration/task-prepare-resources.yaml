@@ -1,0 +1,51 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: prepare-resources
+spec:
+  params:
+  - description: kubeconfig file name
+    name: filename
+    type: string
+  - description: project name
+    name: project
+    type: string
+  - description: tenant name
+    name: tenant
+    type: string
+  - description: name of the cluster
+    name: dest_cluster
+    type: string
+  - description: username for basic authentication to the cluster
+    name: username
+    type: string
+  - name: source_cluster
+    type: string
+  steps:
+  - env:
+    - name: sa_token
+      valueFrom:
+        secretKeyRef:
+          key: $(inputs.params.dest_cluster)
+          name: jenkins-csb-serviceaccounts
+    image: quay.io/openshift/origin-cli:4.20
+    name: start-clean
+    resources: {}
+    script: "#!/usr/bin/env bash\nset -euo pipefail\ntrap 's=$?; echo >&2 \"$0: Error
+      on line \"$LINENO\": $BASH_COMMAND\"; exit $s' ERR\nexport KUBECONFIG=\"$(workspaces.input.path)/$(inputs.params.source_cluster)/$(inputs.params.filename)\"\noc
+      delete pod $(inputs.params.tenant)-jenkins-rsync -n $(inputs.params.project)
+      --ignore-not-found=true  \noc delete secret $(inputs.params.tenant)-kubeconfig-rsync
+      -n $(inputs.params.project) --ignore-not-found=true\noc process -f /var/rsync-template/secret.yaml
+      INSTANCE=$(inputs.params.tenant) PROJECT=$(inputs.params.project) USERNAME=$(inputs.params.username)
+      TOKEN=$sa_token DEST_OCP=$(inputs.params.dest_cluster) | oc create -n $(inputs.params.project)
+      -f -\n"
+    volumeMounts:
+    - mountPath: /var/rsync-template
+      name: rsync-template
+  volumes:
+  - configMap:
+      name: rsync-template
+    name: rsync-template
+  workspaces:
+  - name: input
+    readOnly: true

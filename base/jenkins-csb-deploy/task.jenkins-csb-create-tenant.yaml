@@ -1,0 +1,115 @@
+﻿apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: jenkins-csb-create-tenant
+spec:
+  params:
+    - name: jenkinsCsbVersion
+      type: string
+    - name: instanceName
+      type: string
+    - name: teamName
+      type: string
+    - name: roverGroup
+      type: string
+    - name: jnlpPort
+      type: string
+    - name: OCP_CLUSTER
+      type: string
+  steps:
+    - image: 'registry.access.redhat.com/ubi8/ubi:latest'
+      name: create-directory-structure
+      script: >
+        #!/usr/bin/env bash
+
+        set -ex
+
+        INSTANCE_DIRECTORY="tenants/$(params.OCP_CLUSTER)/$(params.teamName)/$(params.instanceName)"
+
+        TEMPLATE_DIRECTORY="tenant-templates"
+
+        ROOT_PROJECT_DIRECTORY="tenants/$(params.OCP_CLUSTER)/$(params.teamName)"
+
+
+        ls "$(workspaces.controller.path)" 
+
+
+        cd "$(workspaces.controller.path)"
+
+
+        if [ -d "${INSTANCE_DIRECTORY}" ]; then
+          echo "ERROR: Instance $(params.teamName)/$(params.instanceName) already exists, aborting"
+          exit 1
+        else
+          echo "Creating directory structure for tenant $(params.teamName)/$(params.instanceName)"
+
+          curl -L https://github.com/mikefarah/yq/releases/download/v4.16.2/yq_linux_amd64 -o /usr/bin/yq
+
+          # Download kustomize
+          curl -s https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh | bash
+
+          # Copy kustomize to the target directory
+          cp kustomize /usr/local/bin
+
+          chmod +x /usr/bin/yq
+          
+          mkdir -p "${ROOT_PROJECT_DIRECTORY}"
+
+          mkdir -p "${INSTANCE_DIRECTORY}"
+
+          cd "${TEMPLATE_DIRECTORY}" 
+          cp kustomization.yaml values.yaml "../${INSTANCE_DIRECTORY}"
+
+          cd ../
+
+          if [ ! -f "${ROOT_PROJECT_DIRECTORY}/kustomization.yaml" ]; then
+            
+            echo "This is the first instance in this project, creating root level kustomization file"
+
+            cp ${TEMPLATE_DIRECTORY}/egress.yaml ${TEMPLATE_DIRECTORY}/limits.yaml ${ROOT_PROJECT_DIRECTORY}
+            cp ${TEMPLATE_DIRECTORY}/top_level_kustomization.yaml ${ROOT_PROJECT_DIRECTORY}/kustomization.yaml
+
+            cd ${ROOT_PROJECT_DIRECTORY}
+            kustomize edit add resource egress.yaml limits.yaml
+
+          fi
+
+          cd "$(workspaces.controller.path)"
+
+          yq eval ".resources += [\"$(params.instanceName)\"]" -i "${ROOT_PROJECT_DIRECTORY}/kustomization.yaml" # Pointer to new instance
+          cd "${INSTANCE_DIRECTORY}"
+
+          # Modify kustomization file
+          yq eval '.helmCharts[0].name = "$(params.jenkinsCsbVersion)"' -i "kustomization.yaml"
+          yq eval '.helmCharts[0].releaseName = "$(params.instanceName)"' -i "kustomization.yaml"
+          yq eval '.helmCharts[0].valuesInline.teamName = "$(params.teamName)"' -i "kustomization.yaml"
+
+          # Adding a free jnlp port 
+          JNLP_PORT=$(echo "$(params.jnlpPort)" | tr '\n' ' ' | xargs)
+          yq eval ".helmCharts[0].valuesInline.jnlpService.port = $JNLP_PORT" -i "kustomization.yaml"
+
+          # Modify values file
+          yq eval '.raw_casc_properties_location = "https://gitlab.cee.redhat.com/ccit/jenkins-csb-customers/$(params.teamName)-casc-$(params.instanceName)/-/raw/main/properties.yaml"' -i "values.yaml"
+
+          # Convert the group list into an array,
+          IFS=',' read -ra groups <<< "$(params.roverGroup)"
+
+          # Iterate over each group and add it to PermissionGroups in values.yaml
+          for group in "${groups[@]}"; do
+            group=$(echo "$group" | xargs)
+            echo "Adding group: $group"
+            yq eval ".PermissionGroups += [\"$group\"]" -i "values.yaml"
+          done          
+          echo "Updated values.yaml content:"
+        fi
+
+
+        cat kustomization.yaml 
+
+        echo "--------------------------------------------"
+
+        cat values.yaml
+
+        cd "$(workspaces.controller.path)/${ROOT_PROJECT_DIRECTORY}"
+  workspaces:
+    - name: controller

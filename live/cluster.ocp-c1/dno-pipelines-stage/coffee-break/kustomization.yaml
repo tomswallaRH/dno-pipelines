@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../../../base/coffee-break
+patches:
+  # Basically never run it on stage
+  # Also set correct event listener address
+  - target:
+      group: batch
+      version: v1
+      kind: CronJob
+      name: cron-coffee
+    path: patches/cron-coffee.cronjob.jpatch.yaml
+  #Configure email title, sender, and recipients
+  - target:
+      group: tekton.dev
+      version: v1beta1
+      kind: Pipeline
+      name: coffee-break
+    path: patches/coffee-break.pipeline.jpatch.yaml

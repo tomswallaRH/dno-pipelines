@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - task.git-cli-with-workspace.yaml
+  - pipeline.jenkins-csb-deploy.yaml 
+  - task.git-cli.yaml
+  - secret.gitlab-jenkins-csb-token.yaml
+  - secret.jenkins-csb-customers-token.yaml
+  - secret.jenkins-quota-token.yaml
+  - task.jenkins-csb-create-tenant.yaml
+  - task.oc-security-context.yaml
+  - task.create-openshift-project.yaml
+  - task.gather-general-facts.yaml
+  - serviceaccount.jenkins-csb-deploy.yaml

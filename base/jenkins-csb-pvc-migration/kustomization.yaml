@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - cm-dummy-pod.yaml
+  - cm-rsync-template.yaml
+  - pipeline-jenkins-csb-migration.yaml
+  - secret-jenkins-csb-serviceaccounts.yaml
+  - task-cleanup.yaml
+  - task-create-kubeconfig.yaml
+  - task-gather-info.yaml
+  - task-prepare-resources.yaml
+  - task-run-dummy-pod.yaml
+  - task-run-rsync.yaml
+  - task-scale-0.yaml
+  - task-scale-1.yaml
+  - task-post-rsync.yaml
+  - secret.gitlab-controller-repo-ssh.yaml

@@ -1,0 +1,31 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: jenkins-csb-upgrade-root
+spec:
+  params:
+    - name: TEAM
+      type: string
+      description: 'Team name'
+    - name: TENANT
+      type: string
+      description: 'Jenkins tenant'
+    - name: NEW_VERSION
+      type: string
+      description: 'For example: 2.452.4'
+  workspaces:
+    - name: cloned-sources
+      description: WS to share cloned sources with genie
+    - name: clone-ssh-creds
+      description: Mounted secret so git can clone private repo
+  tasks:
+    - name: jenkins-csb-upgrade
+      taskRef:
+        name: jenkins-csb-upgrade
+      params:
+        - name: TEAM
+          value: $(params.TEAM)
+        - name: TENANT
+          value: $(params.TENANT)
+        - name: NEW_VERSION
+          value: $(params.NEW_VERSION)

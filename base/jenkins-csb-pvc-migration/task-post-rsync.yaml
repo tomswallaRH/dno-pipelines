@@ -1,0 +1,94 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: post-rsync
+spec:
+  params:
+  - description: kubeconfig file name
+    name: filename
+    type: string
+  - description: project name
+    name: project
+    type: string
+  - description: tenant name
+    name: tenant
+    type: string
+  - description: name of the cluster
+    name: dest_cluster
+    type: string
+  - description: name of the cluster
+    name: source_cluster
+    type: string
+  - name: dest_project
+    type: string
+  - description: Setting a label value once migration is finished
+    name: dc_label
+    default: migrated
+    type: string
+  steps:
+    - image: 'quay.io/openshift/origin-cli:4.20'
+      name: update-secret-and-build
+      script: >
+        #!/usr/bin/env bash
+
+        set -euo pipefail
+
+        trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit
+        $s' ERR
+
+        # Installing yq
+        
+        curl -L https://github.com/mikefarah/yq/releases/download/v4.16.2/yq_linux_amd64 -o /usr/bin/yq
+
+        chmod +x /usr/bin/yq
+
+        export KUBECONFIG="$(workspaces.input.path)/$(inputs.params.source_cluster)/$(inputs.params.filename)"
+
+        oc get secret $(inputs.params.tenant)-casc-secret -n
+        $(inputs.params.project) -o yaml > temp-casc-secret.yaml
+
+        yq eval 'del(.metadata)' -i temp-casc-secret.yaml 
+
+        yq eval '.metadata.name = "$(inputs.params.tenant)-casc-secret"' -i
+        temp-casc-secret.yaml
+
+        export KUBECONFIG="$(workspaces.input.path)/$(inputs.params.dest_cluster)/$(inputs.params.filename)"
+
+        echo "Importing existing secrets to openshift"
+
+        oc replace -f temp-casc-secret.yaml -n $(inputs.params.dest_project)
+
+        echo "Starting jenkins build" # To be removed
+
+        oc start-build $(inputs.params.tenant)-jenkins -n dno--$(inputs.params.project)
+
+        rm -rf temp-casc-secret.yaml
+
+    - image: 'quay.io/openshift/origin-cli:4.20'
+      name: label-source-dc
+      script: >
+        #!/usr/bin/env bash
+
+        set -euo pipefail
+
+        trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit
+        $s' ERR
+
+        # Label the source DC
+
+        DC_LABEL="$(inputs.params.dc_label)"
+
+        echo "Labeling the source deploymentconfig with: ${DC_LABEL}"
+
+        export KUBECONFIG="$(workspaces.input.path)/$(inputs.params.source_cluster)/$(inputs.params.filename)"
+
+        if [[ "$DC_LABEL" == "pre-migrated" ]]; then
+          oc label deploymentconfig "$(inputs.params.tenant)-jenkins" -n $(inputs.params.project) ocp-hub-migration=pre-migrated --overwrite
+        
+        else
+          oc label deploymentconfig "$(inputs.params.tenant)-jenkins" -n $(inputs.params.project) ocp-hub-migration=migrated --overwrite
+        
+        fi
+  workspaces:
+  - name: input
+    readOnly: true

@@ -1,0 +1,272 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: jenkins-csb-migrate-pvc-only
+spec:
+  finally:
+    - name: cleanup
+      params:
+        - name: dest_project
+          value: dno--$(params.project)
+        - name: filename
+          value: kubeconfig
+        - name: project
+          value: $(params.project)
+        - name: tenant
+          value: $(params.instance)
+        - name: dest_cluster
+          value: $(params.dest_cluster)
+        - name: source_cluster
+          value: $(params.source_cluster)
+      taskRef:
+        kind: Task
+        name: cleanup
+      timeout: 5m0s
+      workspaces:
+        - name: input
+          workspace: shared-workspace
+    - name: sendmail-success
+      params:
+        - name: subject
+          value: 'Success: PVC Migration $(params.instance) $(params.project)'
+        - name: body
+          value: >-
+            Success! All jobs were migrated to $(params.dest_cluster) 
+
+            The PVC of $(params.instance)-$(params.project) was migrated to the new cluster  
+            
+            Note that it's just the PVC! Please run the actual migration pipeline to finish the instance migration
+
+            $(tasks.run-rsync.results.sync-result)
+        - name: sender
+          value: $(params.mail_sender)
+        - name: recipients
+          value: $(params.mail_recipients)
+      taskRef:
+        kind: Task
+        name: sendmail
+      timeout: 3m0s
+      when:
+        - input: $(tasks.run-rsync.status)
+          operator: in
+          values:
+            - Succeeded
+    - name: sendmail-error
+      params:
+        - name: subject
+          value: 'Error: PVC Migration $(params.instance) $(params.project)'
+        - name: body
+          value: >-
+            Error!
+
+            PVC migration failed!
+
+        - name: sender
+          value: $(params.mail_sender)
+        - name: recipients
+          value: $(params.mail_recipients)
+      taskRef:
+        kind: Task
+        name: sendmail
+      timeout: 3m0s
+      when:
+        - input: $(tasks.run-rsync.status)
+          operator: in
+          values:
+            - Failed
+            - None
+  params:
+    - description: project for migration
+      name: project
+      type: string
+    - description: jenkins-csb instance (tenant) for migration
+      name: instance
+      type: string
+    - default: dno-pipelines@redhat.com
+      description: the email address that will send mail notifications
+      name: mail_sender
+      type: string
+    - default: ifaigenb@redhat.com
+      description: the email addresses seperated by space that will get mail notifications
+      name: mail_recipients
+      type: string
+    - default: ocp-c1
+      name: source_cluster
+      type: string
+    - default: dno.ocp-hub
+      name: dest_cluster
+      type: string
+    - default: jenkins
+      name: username
+      type: string
+    - default: controller-clone
+      name: controller-clone-path
+      type: string
+  tasks:
+    - name: post-rsync
+      params:
+        - name: filename
+          value: kubeconfig
+        - name: project
+          value: $(params.project)
+        - name: dest_project
+          value: dno--$(params.project)
+        - name: tenant
+          value: $(params.instance)
+        - name: dest_cluster
+          value: $(params.dest_cluster)
+        - name: source_cluster
+          value: $(params.source_cluster)
+        - name: dc_label
+          value: pre-migrated
+      runAfter:
+        - run-rsync
+      taskRef:
+        kind: Task
+        name: post-rsync
+      timeout: 10m0s
+      workspaces:
+        - name: input
+          workspace: shared-workspace
+    - name: run-rsync
+      params:
+        - name: filename
+          value: kubeconfig
+        - name: project
+          value: $(params.project)
+        - name: dest_project
+          value: dno--$(params.project)
+        - name: tenant
+          value: $(params.instance)
+        - name: dest_cluster
+          value: $(params.dest_cluster)
+        - name: source_cluster
+          value: $(params.source_cluster)
+        - name: username
+          value: $(params.username)
+        - name: pvc
+          value: $(tasks.gather-info.results.pvc-name)
+      retries: 2
+      runAfter:
+        - run-dummy-pod
+        - gather-info
+        - prepare-resources
+      taskRef:
+        kind: Task
+        name: run-rsync
+      timeout: 24h0m0s
+      workspaces:
+        - name: input
+          workspace: shared-workspace
+    - name: prepare-resources
+      params:
+        - name: filename
+          value: kubeconfig
+        - name: project
+          value: $(params.project)
+        - name: tenant
+          value: $(params.instance)
+        - name: dest_cluster
+          value: $(params.dest_cluster)
+        - name: username
+          value: $(params.username)
+        - name: source_cluster
+          value: $(params.source_cluster)
+      runAfter:
+        - source-kubeconfig
+      taskRef:
+        kind: Task
+        name: prepare-resources
+      timeout: 3m0s
+      workspaces:
+        - name: input
+          workspace: shared-workspace
+    - name: run-dummy-pod
+      params:
+        - name: filename
+          value: kubeconfig
+        - name: project
+          value: dno--$(params.project)
+        - name: tenant
+          value: $(params.instance)
+        - name: dest_cluster
+          value: $(params.dest_cluster)
+      runAfter:
+        - dest-kubeconfig
+      taskRef:
+        kind: Task
+        name: run-dummy-pod
+      timeout: 5m0s
+      workspaces:
+        - name: input
+          workspace: shared-workspace
+        - name: output
+          workspace: shared-workspace
+    - name: gather-info
+      params:
+        - name: filename
+          value: kubeconfig
+        - name: project
+          value: $(params.project)
+        - name: tenant
+          value: $(params.instance)
+        - name: dest_cluster
+          value: $(params.dest_cluster)
+        - name: username
+          value: $(params.username)
+        - name: source_cluster
+          value: $(params.source_cluster)
+      runAfter:
+        - source-kubeconfig
+      taskRef:
+        kind: Task
+        name: gather-info
+      timeout: 3m0s
+      workspaces:
+        - name: input
+          workspace: shared-workspace
+    - name: source-kubeconfig
+      params:
+        - name: cluster
+          value: $(params.source_cluster)
+        - name: url
+          value: 'https://api.$(params.source_cluster).prod.psi.redhat.com:6443'
+        - name: username
+          value: $(params.username)
+        - name: insecure
+          value: 'false'
+        - name: namespace
+          value: $(params.project)
+        - name: filename
+          value: kubeconfig
+      taskRef:
+        kind: Task
+        name: create-kubeconfig
+      timeout: 3m0s
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+    - name: dest-kubeconfig
+      params:
+        - name: cluster
+          value: $(params.dest_cluster)
+        - name: url
+          value: 'https://api.$(params.dest_cluster).prod.psi.redhat.com:6443'
+        - name: username
+          value: $(params.username)
+        - name: insecure
+          value: 'false'
+        - name: namespace
+          value: dno--$(params.project)
+        - name: filename
+          value: kubeconfig
+      taskRef:
+        kind: Task
+        name: create-kubeconfig
+      timeout: 3m0s
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+  workspaces:
+    - name: shared-workspace
+    - name: controller-repo-ssh

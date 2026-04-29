@@ -1,0 +1,209 @@
+﻿apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: gather-general-facts
+spec:
+  params:
+    - description: OCP_CLUSTER
+      name: OCP_CLUSTER
+      type: string
+    - description: Rover group
+      name: rover_group
+      type: string
+    - name: teamName
+      type: string
+    - name: instanceName
+      type: string
+    - default: main
+      name: controllerRepoBranch
+      type: string
+  results:
+    - description: Checks if the openshift project exists
+      name: projectExists
+      type: string
+    - description: Checks if the customer gitlab repo exists
+      name: customerRepoExists
+      type: string
+    - description: Checks if argocd customer exists
+      name: customerArgocdExists
+      type: string
+    - description: Available nodeport
+      name: availableNodePort
+      type: string
+  steps:
+    - image: 'registry.access.redhat.com/ubi8/ubi:latest'
+      name: instant-fails-check
+      resources: {}
+      script: >
+        #!/usr/bin/env bash
+
+
+        #### Check if cluster name is valid #### 
+
+        valid_clusters=("dno", dev-dno "ocp-c1")
+
+        if [[ ${valid_clusters[@]} =~ $(params.OCP_CLUSTER) ]]; then
+
+          echo "[OK] $(params.OCP_CLUSTER) is a valid cluster target"
+
+        else
+
+          echo "[ERROR] $(params.OCP_CLUSTER) is not a valid cluster target"
+          exit 1
+        fi
+
+        #### Check if rover group exists #### 
+
+        dnf install --disablerepo="*"
+        --enablerepo="rhel-8-for-x86_64-baseos-rpms" -y openldap-clients
+
+        ldapsearch -x -H ldap://ldap.corp.redhat.com -L -b ''dc=redhat,dc=com''
+        -s sub ''cn=$(params.rover_group)'' | grep numEntries > /dev/null
+
+
+        if [ $? -ne 0 ]; then
+
+          echo "Rover group $(params.rover_group) does not exist, existing"
+          exit 1
+        else
+
+          echo "[OK] Rover group $(params.rover_group) found!"
+        fi
+
+        #### Check if instance name is not too long ####  # Check FQDN length <
+        64 characters
+
+        TEAMNAME=$(params.teamName) 
+        
+        INSTANCE=$(params.instanceName)
+
+        if [ "$(params.OCP_CLUSTER)" = "ocp-c1" ]; then
+
+          FQDN="${INSTANCE}-jenkins-csb-${TEAMNAME}.apps.$(params.OCP_CLUSTER).prod.psi.redhat.com"
+        else
+
+          FQDN="${INSTANCE}-dno--jenkins-csb-${TEAMNAME}.apps.$(params.OCP_CLUSTER).ocp-hub.prod.psi.redhat.com"
+        fi
+
+        if [ "${#FQDN}" -gt 64 ]; then
+
+          echo "Requested url too long \(${#FQDN} > 64 chars\): $FQDN"
+          echo "Please use a shorter project and/or tenant name"
+          exit 1
+
+        else
+
+          echo "[OK] ${FQDN} is shorter than 64 chars"
+
+        fi
+    - env:
+        - name: CUSTOMERS-TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: jenkins-csb-customers-token
+              name: jenkins-csb-customers-token
+      image: 'quay.io/openshift/origin-cli:latest'
+      name: check-partial-deployment
+      script: >-
+        #!/usr/bin/env bash
+
+        TEAMNAME=$(params.teamName)
+
+        INSTANCENAME=$(params.instanceName)
+
+        CONTROLLER_BRANCH=$(params.controllerRepoBranch)
+
+        export customersToken=$(printenv CUSTOMERS-TOKEN)
+
+        ## Find available Node Port ##
+
+        SERVICE_SUFFIX=$(tr -dc a-z0-9 </dev/urandom | head -c 5; echo)
+
+        SERVICE_NAME="nodeport-test-${SERVICE_SUFFIX}"
+
+        # Create the NodePort service
+
+        JNLP_PORT=$(oc create service nodeport ${SERVICE_NAME} --tcp=9090:9090 -o jsonpath='{.spec.ports[0].nodePort}')
+
+        # Wait for a few seconds
+
+        sleep 5
+
+        # Save result
+
+        echo ${JNLP_PORT} | tr -d '\n' > $(results.availableNodePort.path)
+
+        echo "[INFO] Found available NodePort: ${JNLP_PORT}"
+
+        # Clean up by deleting the service
+
+        oc delete service ${SERVICE_NAME} > /dev/null 2>&1 
+
+        ## Actual Test ## 
+
+        project_list=$(curl -s -k --header "PRIVATE-TOKEN: ${customersToken}" https://gitlab.cee.redhat.com/api/v4/projects/ccit%2Fdeployments%2Fdno-config/repository/files/cluster.$(params.OCP_CLUSTER)%2FTenantNamespace%2Fvalues.yaml/raw?ref=${CONTROLLER_BRANCH})
+
+        if [[ "$project_list" == *"jenkins-csb-${TEAMNAME}"* ]]; then
+
+          status="True"
+          echo -e "[FOUND] Project jenkins-csb-${TEAMNAME} exists in cluster.$(params.OCP_CLUSTER), branch: ${CONTROLLER_BRANCH}"
+          echo ${status} | tr -d '\n' > $(results.projectExists.path)
+
+        else
+
+          status="False"
+          echo -e "[MISSING] Project jenkins-csb-${TEAMNAME} missing from dno-config in cluster.$(params.OCP_CLUSTER), branch: ${CONTROLLER_BRANCH}"
+          echo ${status} | tr -d '\n' > $(results.projectExists.path)
+
+        fi
+
+
+        export repoName="jenkins-csb-customers/${TEAMNAME}-casc-${INSTANCENAME}"
+
+        response_code=$(curl -s -k -o /dev/null -w "%{http_code}" --header
+        "PRIVATE-TOKEN: ${customersToken}"
+        "https://gitlab.cee.redhat.com/api/v4/projects/ccit%2Fjenkins-csb-customers%2F${TEAMNAME}-casc-${INSTANCENAME}")
+
+        if [ "$response_code" -eq 200 ]; then
+          echo -e "[FOUND] Customer repo ${repoName} exists (HTTP Status: $response_code)"
+          echo "True" | tr -d '\n' > $(results.customerRepoExists.path)
+
+        elif [ "$response_code" -eq 404 ]; then
+          echo -e "[MISSING] Customer repo ${repoName} missing (HTTP Status: $response_code)"
+          echo "False" | tr -d '\n' > $(results.customerRepoExists.path)
+
+        elif [ "$response_code" -eq 401 ]; then
+          echo "[ERROR] Unauthorized access to repo: ${repoName}. Check your access token. (HTTP Status: $response_code)"
+          exit 1
+          
+        else
+          echo "[ERROR] Failed to access repo: {repoName} with HTTP Status: $response_code"
+          exit 1
+        fi
+
+        #### Check existing tenant
+
+        controller_repo="ccit/deployments/jenkins-csb/controller"
+
+        user_argocd_kustomization_file="https://gitlab.cee.redhat.com/api/v4/projects/ccit%2Fdeployments%2Fjenkins-csb%2Fcontroller/repository/files/tenants%2F$(params.OCP_CLUSTER)%2F${TEAMNAME}%2F${INSTANCENAME}%2Fkustomization.yaml?ref=${CONTROLLER_BRANCH}"
+
+        response_code=$(curl -s -k -o /dev/null -w "%{http_code}" --header
+        "PRIVATE-TOKEN: ${customersToken}" ${user_argocd_kustomization_file})
+
+        if [ "$response_code" -eq 200 ]; then
+          echo -e "[FOUND] ArgoCD customer already exists in ${controller_repo} repo in under tenants folder (HTTP Status: $response_code)"
+          echo "True" | tr -d '\n' > $(results.customerArgocdExists.path)
+
+        elif [ "$response_code" -eq 404 ]; then
+          echo -e "[MISSING] ArgoCD customer missing (HTTP Status: $response_code)"
+          echo "False" | tr -d '\n' > $(results.customerArgocdExists.path)
+
+        elif [ "$response_code" -eq 401 ]; then
+          echo "[ERROR] Unauthorized access to repo: ${controller_repo}. Check your access token. (HTTP Status: $response_code)"
+          exit 1
+
+        else
+          echo "[ERROR] Failed to access repo: {repoName} with HTTP Status: $response_code"
+          exit 1
+          
+        fi

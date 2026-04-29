@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - pipeline.jenkins-image-builder.yaml
+  - secret.images-pass-token.yaml
+  - task.jenkins-csb-update-version.yaml
+#  - task.clean-pvc.yaml - in base/general

@@ -1,0 +1,27 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: jenkins-csb-upgrade-image
+spec:
+  source:
+    type: Git
+    git:
+      uri: git@gitlab.cee.redhat.com:ccit/deployments/dno-pipelines.git
+      ref: main
+    sourceSecret:
+      name: git-clone-ssh-directory-gitlab-deployments-jenkins-csb-controller
+    contextDir: base/jenkins-csb-upgrade/image
+  strategy:
+    type: Docker
+  output:
+    to:
+      kind: ImageStreamTag
+      name: pl-jenkins-csb-upgrade-image:latest
+      # TODO: Move to images.paas
+#    to:
+#      kind: DockerImage
+#      name: images.paas.redhat.com/XXX:latest
+  resources: {}
+  triggers:
+    - type: ConfigChange
+  runPolicy: Serial

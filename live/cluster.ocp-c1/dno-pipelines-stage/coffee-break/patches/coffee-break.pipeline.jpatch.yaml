@@ -1,0 +1,9 @@
+- op: replace
+  path: /spec/tasks/0/params/0/value
+  value: "[STAGE] D&O Coffee Breaks"
+- op: replace
+  path: /spec/tasks/0/params/2/value
+  value: "sfathii@redhat.com"
+- op: replace
+  path: /spec/tasks/0/params/3/value
+  value: "ifaigenb@redhat.com"

@@ -1,0 +1,44 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cleanup
+spec:
+  params:
+  - description: kubeconfig file name
+    name: filename
+    type: string
+  - description: project name
+    name: project
+    type: string
+  - description: Dest project name
+    name: dest_project
+    type: string
+  - description: tenant name
+    name: tenant
+    type: string
+  - description: name of the cluster
+    name: dest_cluster
+    type: string
+  - description: name of the cluster
+    name: source_cluster
+    type: string
+  steps:
+  - image: quay.io/openshift/origin-cli:4.20
+    name: terminate-dummy
+    resources: {}
+    script: |
+      set -euo pipefail
+      trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
+      export KUBECONFIG="$(workspaces.input.path)/$(inputs.params.dest_cluster)/$(inputs.params.filename)"
+      oc delete pod "$(inputs.params.tenant)"-rsync-reciever -n "$(inputs.params.dest_project)" --ignore-not-found=true
+  - image: quay.io/openshift/origin-cli:4.20
+    name: remove-kubeconfig-secret
+    resources: {}
+    script: |
+      set -euo pipefail
+      trap 's=$?; echo >&2 "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
+      export KUBECONFIG="$(workspaces.input.path)/$(inputs.params.source_cluster)/$(inputs.params.filename)"
+      oc delete secret $(inputs.params.tenant)-kubeconfig-rsync -n $(inputs.params.project) --ignore-not-found=true
+  workspaces:
+  - name: input
+    readOnly: true

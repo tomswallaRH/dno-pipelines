@@ -1,0 +1,24 @@
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: EventListener
+metadata:
+  name: gitlab-monitor-gitlab-listener
+spec:
+  serviceAccountName: pipeline
+  triggers:
+    - name: gitlab-push-events-trigger
+      interceptors:
+        - name: "gitlab-monitor-pipeline"
+          ref:
+            name: "gitlab"
+          params:
+            - name: "secretRef"
+              value:
+                secretName: foo
+                secretKey: bar
+            - name: "eventTypes"
+              value: ["Push Hook"]
+      bindings:
+        - kind: TriggerBinding
+          ref: gitlab-monitor-pipeline-binding
+      template:
+        ref: gitlab-monitor-pipeline-template 

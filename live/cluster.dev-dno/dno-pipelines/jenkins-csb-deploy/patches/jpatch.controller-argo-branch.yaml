@@ -1,0 +1,6 @@
+- op: replace
+  path: /spec/params/0/default
+  value: "test-jenkins-deploy"
+- op: replace
+  path: /spec/params/1/default
+  value: "dev-dno"

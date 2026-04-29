@@ -1,0 +1,30 @@
+- op: add
+  path: /spec/tasks/0/taskSpec
+  value:
+    securityContext:
+      runAsNonRoot: false
+      runAsUser: 0
+- op: add
+  path: /spec/tasks/1/taskSpec
+  value:
+    securityContext:
+      runAsNonRoot: false
+      runAsUser: 0
+- op: add
+  path: /spec/tasks/2/taskSpec
+  value:
+    securityContext:
+      runAsNonRoot: false
+      runAsUser: 0
+- op: add
+  path: /spec/tasks/3/taskSpec
+  value:
+    securityContext:
+      runAsNonRoot: false
+      runAsUser: 0
+- op: add
+  path: /spec/tasks/4/taskSpec
+  value:
+    securityContext:
+      runAsNonRoot: false
+      runAsUser: 0 

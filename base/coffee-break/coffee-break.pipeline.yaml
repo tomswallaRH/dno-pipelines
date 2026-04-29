@@ -1,0 +1,114 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: coffee-break
+spec:
+  finally:
+    - name: clean-pvc
+      taskRef:
+        kind: Task
+        name: clean-pvc
+      workspaces:
+        - name: clone-directory
+          workspace: clone-directory
+  tasks:
+    #sendmail must stay the first task, the jsonpatch is counting on that
+    - name: sendmail 
+      params:
+        - name: subject
+          value: D&O Coffee Breaks
+        - name: body
+          value: $(tasks.generate-groups.results.print-python-result)
+        - name: sender
+          value: sfathii@redhat.com
+        - name: recipients
+          value: $(tasks.generate-groups.results.participants-emails) #This is replaced in jsonpatch
+      runAfter:
+        - generate-groups
+      taskRef:
+        kind: Task
+        name: sendmail
+    - name: fetch-source
+      params:
+        - name: url
+          value: 'git@gitlab.cee.redhat.com:ccit/coffee-break.git'
+        - name: revision
+          value: master
+        - name: refspec
+          value: ''
+        - name: submodules
+          value: 'true'
+        - name: depth
+          value: '1'
+        - name: sslVerify
+          value: 'true'
+        - name: crtFileName
+          value: ca-bundle.crt
+        - name: subdirectory
+          value: ''
+        - name: sparseCheckoutDirectories
+          value: ''
+        - name: deleteExisting
+          value: 'true'
+        - name: httpProxy
+          value: ''
+        - name: httpsProxy
+          value: ''
+        - name: noProxy
+          value: ''
+        - name: verbose
+          value: 'true'
+        - name: gitInitImage
+          value: >-
+            registry.redhat.io/openshift-pipelines/pipelines-git-init-rhel8@sha256:aa2599a70c14b4f30c9959f6ddafc2510180764d9464e6e2ec5f2147a0a0bf80
+        - name: userHome
+          value: /tekton/home
+      taskRef:
+        kind: ClusterTask
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: clone-directory
+        - name: ssh-directory
+          workspace: ssh-creds
+    - name: git-cli
+      params:
+        - name: BASE_IMAGE
+          value: images.paas.redhat.com/it-cloud-ocp-proxy/alpine/git
+        - name: GIT_USER_NAME
+          value: ccit-test
+        - name: GIT_USER_EMAIL
+          value: ccit-test@redhat.com
+        - name: GIT_SCRIPT
+          value: |
+            git config --global --add safe.directory $(workspaces.input.path)
+            cd $(workspaces.input.path)
+            git add last_week.txt . 
+            git commit -am "Update participants list" 
+            git push origin HEAD:master
+        - name: VERBOSE
+          value: 'true'
+      runAfter:
+        - generate-groups
+      taskRef:
+        kind: ClusterTask
+        name: git-cli
+      workspaces:
+        - name: source
+          workspace: clone-directory
+        - name: input
+          workspace: clone-directory
+        - name: ssh-directory
+          workspace: ssh-creds
+    - name: generate-groups
+      runAfter:
+        - fetch-source
+      taskRef:
+        kind: Task
+        name: execute-coffee-break
+      workspaces:
+        - name: clone-directory
+          workspace: clone-directory
+  workspaces:
+    - name: ssh-creds
+    - name: clone-directory
