@@ -1,4 +1,4 @@
-# Konflux docker-build (trusted artifacts). Replace changeme-tenant with your Konflux namespace.
+# Konflux docker-build (trusted artifacts). Namespace set for sfathii-tenant.
 # See https://konflux-ci.dev/docs/building/customizing-the-build/
 apiVersion: tekton.dev/v1
 kind: PipelineRun
@@ -17,7 +17,7 @@ metadata:
     appstudio.openshift.io/component: dno-pipelines
     pipelines.appstudio.openshift.io/type: build
   name: dno-pipelines-on-pull-request
-  namespace: changeme-tenant
+  namespace: sfathii-tenant
 spec:
   params:
   - name: git-url
@@ -25,7 +25,7 @@ spec:
   - name: revision
     value: '{{revision}}'
   - name: output-image
-    value: quay.io/redhat-user-workloads/changeme-tenant/dno-pipelines/dno-pipelines:on-pr-{{revision}}
+    value: quay.io/redhat-user-workloads/sfathii-tenant/dno-pipelines/dno-pipelines:on-pr-{{revision}}
   - name: image-expires-after
     value: 5d
   - name: dockerfile
