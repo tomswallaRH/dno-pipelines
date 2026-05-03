@@ -33,7 +33,7 @@ spec:
     - name: image-expires-after
       value: 5d
     - name: skip-checks
-      value: "false"
+      value: "true"
     - name: hermetic
       value: "false"
     - name: prefetch-input

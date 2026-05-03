@@ -15,6 +15,8 @@ Optional: pin `pipelineRef` to the pipeline bundle digest your Konflux release e
 ## Layout
 
 ```
-components/coffee-break/   # Dockerfile + Python sources (build context)
+components/coffee-break/   # Dockerfile only (Hello World on `podman run` / `kubectl run`)
 .tekton/                   # PaC PipelineRuns (push + pull_request)
 ```
+
+After a green build, run the image you pushed (image URL is on the PipelineRun) to see `Hello World` in the container logs. Konflux build logs show the build; application output appears when the container **runs**.

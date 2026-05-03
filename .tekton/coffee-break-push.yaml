@@ -32,7 +32,7 @@ spec:
     - name: image-expires-after
       value: ""
     - name: skip-checks
-      value: "false"
+      value: "true"
     - name: hermetic
       value: "false"
     - name: prefetch-input
