@@ -1,4 +1,7 @@
-# Konflux Component CR — apply in cluster or mirror in UI; paths are relative to repo root.
+# Konflux Component CR — apply in cluster or register via UI; paths are relative to repo root.
+#
+# spec.containerImage — push destination (no tag in CR). Konflux tags per build; PaC `output-image`
+# must use this repository + a tag (e.g. :{{revision}} on main, :on-pr-{{revision}} for PRs).
 apiVersion: appstudio.redhat.com/v1alpha1
 kind: Component
 metadata:
@@ -10,7 +13,7 @@ spec:
   containerImage: quay.io/redhat-user-workloads/sfathii-tenant/coffee/coffee-break
   source:
     git:
-      url: https://github.com/tomswallaRH/dno-pipelines.git
+      url: https://github.com/tomswallaRH/dno-automation-services.git
       revision: main
       context: applications/coffee/components/coffee-break
       dockerfileUrl: Containerfile

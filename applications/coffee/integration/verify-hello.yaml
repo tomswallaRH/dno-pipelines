@@ -1,18 +1,27 @@
-# Konflux integration test: run the snapshot image and assert "Hello World" in logs.
-# Register in Konflux: Application → Integration tests → scenario with pathInRepo pointing here.
+# Konflux integration test: run the **coffee-break** image from the ApplicationSnapshot and assert logs.
+# Konflux supplies SNAPSHOT JSON (components[].name / .containerImage). This pipeline selects the
+# component named `coffee-break` — same name as metadata in applications/coffee/components/coffee-break/component.yaml.
+#
+# Register: Application → Integration tests → IntegrationTestScenario with pathInRepo =
+#   applications/coffee/integration/verify-hello.yaml
 ---
 apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
   name: coffee-break-verify-hello-world
+  labels:
+    appstudio.openshift.io/application: coffee
+    appstudio.openshift.io/component: coffee-break
 spec:
   description: >-
     Runs the coffee-break component image from the snapshot and checks stdout for "Hello World".
   params:
     - name: SNAPSHOT
-      description: Snapshot JSON from Konflux (components include containerImage).
+      description: >-
+        Snapshot JSON from Konflux. Must include a component with name "coffee-break" and
+        containerImage set to the image built for that snapshot (same registry path as spec.containerImage in component.yaml).
       type: string
-      default: '{"components":[{"name":"coffee-break","containerImage":"docker.io/library/alpine:latest"}]}'
+      default: '{"components":[{"name":"coffee-break","containerImage":"quay.io/redhat-user-workloads/sfathii-tenant/coffee/coffee-break:latest"}]}'
   tasks:
     - name: run-image-and-verify-logs
       params:

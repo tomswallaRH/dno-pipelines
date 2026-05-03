@@ -1,17 +1,36 @@
-# Pipelines as Code — push build for component coffee-break (Application: coffee, ns: sfathii-tenant).
-# Build contract (repo): applications/coffee/pipelines/coffee-break-pipeline.yaml — same context + Containerfile.
-# Effective execution: Konflux bundle pipeline docker-build-oci-ta (params below must match component.yaml).
+# =============================================================================
+# Konflux: Pipelines-as-Code (PaC) — push to `main` → build coffee-break
+# =============================================================================
+# This repository uses PaC PipelineRun *templates*, not triggers.tekton.dev
+# (TriggerTemplate / TriggerBinding / EventListener). The Konflux PaC
+# controller receives GitHub webhooks and fills {{…}} from the payload.
+#
+# Rough equivalence to classic Tekton Triggers:
+#   TriggerBinding   → implicit PaC bindings (e.g. {{source_url}}, {{revision}}, {{target_branch}})
+#   TriggerTemplate  → this PipelineRun manifest (instantiated per matching event)
+#   EventListener      → cluster-side PaC / Repository endpoint (not stored in Git)
+#
+# Pipeline contract (context + Containerfile) MUST match:
+#   applications/coffee/pipelines/coffee-break-pipeline.yaml
+#   applications/coffee/components/coffee-break/component.yaml
+#
+# Runtime executor: Konflux catalog bundle `docker-build-oci-ta` (clone/build/push with trusted
+# artifacts). Params `path-context` + `dockerfile` align with the repo Pipeline defaults.
+# =============================================================================
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
   annotations:
-    build.appstudio.openshift.io/repo: https://github.com/tomswallaRH/dno-pipelines?rev={{revision}}
+    build.appstudio.openshift.io/repo: https://github.com/tomswallaRH/dno-automation-services?rev={{revision}}
     build.appstudio.redhat.com/commit_sha: '{{revision}}'
     build.appstudio.redhat.com/target_branch: '{{target_branch}}'
+    konflux.dev/pipeline-spec-path: applications/coffee/pipelines/coffee-break-pipeline.yaml
     pipelinesascode.tekton.dev/cancel-in-progress: "false"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "main"
-      && ( "applications/coffee/components/coffee-break/***".pathChanged() || ".tekton/coffee-break-on-push.yaml".pathChanged() )
+      && ( "applications/coffee/components/coffee-break/***".pathChanged()
+      || "applications/coffee/pipelines/coffee-break-pipeline.yaml".pathChanged()
+      || ".tekton/coffee-break-on-push.yaml".pathChanged() )
   labels:
     appstudio.openshift.io/application: coffee
     appstudio.openshift.io/component: coffee-break
@@ -20,10 +39,12 @@ metadata:
   namespace: sfathii-tenant
 spec:
   params:
+    # Git coordinates (PaC: same repo/event that fired this run)
     - name: git-url
       value: '{{source_url}}'
     - name: revision
       value: '{{revision}}'
+    # Image: repository path must match component.yaml spec.containerImage + tag from this revision
     - name: output-image
       value: quay.io/redhat-user-workloads/sfathii-tenant/coffee/coffee-break:{{revision}}
     - name: dockerfile

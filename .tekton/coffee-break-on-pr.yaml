@@ -1,18 +1,27 @@
-# Pipelines as Code — PR build for component coffee-break (Application: coffee, ns: sfathii-tenant).
-# Build contract (repo): applications/coffee/pipelines/coffee-break-pipeline.yaml — same context + Containerfile.
-# Effective execution: Konflux bundle pipeline docker-build-oci-ta (params below must match component.yaml).
+# =============================================================================
+# Konflux: Pipelines-as-Code (PaC) — pull_request targeting `main` → build coffee-break
+# =============================================================================
+# PaC PipelineRun template (not triggers.tekton.dev). Webhook payload → {{…}} params.
+# See coffee-break-on-push.yaml header for TriggerBinding / TriggerTemplate / EventListener mapping.
+#
+# Pipeline contract: applications/coffee/pipelines/coffee-break-pipeline.yaml
+# Component: applications/coffee/components/coffee-break/component.yaml
+# =============================================================================
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
   annotations:
-    build.appstudio.openshift.io/repo: https://github.com/tomswallaRH/dno-pipelines?rev={{revision}}
+    build.appstudio.openshift.io/repo: https://github.com/tomswallaRH/dno-automation-services?rev={{revision}}
     build.appstudio.redhat.com/commit_sha: '{{revision}}'
     build.appstudio.redhat.com/pull_request_number: '{{pull_request_number}}'
     build.appstudio.redhat.com/target_branch: '{{target_branch}}'
+    konflux.dev/pipeline-spec-path: applications/coffee/pipelines/coffee-break-pipeline.yaml
     pipelinesascode.tekton.dev/cancel-in-progress: "true"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch == "main"
-      && ( "applications/coffee/components/coffee-break/***".pathChanged() || ".tekton/coffee-break-on-pr.yaml".pathChanged() )
+      && ( "applications/coffee/components/coffee-break/***".pathChanged()
+      || "applications/coffee/pipelines/coffee-break-pipeline.yaml".pathChanged()
+      || ".tekton/coffee-break-on-pr.yaml".pathChanged() )
   labels:
     appstudio.openshift.io/application: coffee
     appstudio.openshift.io/component: coffee-break

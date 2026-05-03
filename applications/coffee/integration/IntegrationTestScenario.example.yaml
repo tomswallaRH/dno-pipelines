@@ -15,7 +15,7 @@ spec:
     resourceKind: pipeline
     params:
       - name: url
-        value: https://github.com/tomswallaRH/dno-pipelines.git
+        value: https://github.com/tomswallaRH/dno-automation-services.git
       - name: revision
         value: main
       - name: pathInRepo

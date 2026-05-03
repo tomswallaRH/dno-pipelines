@@ -1,7 +1,16 @@
-# Tekton Pipeline: fetch-source → build + push (buildah) for Application coffee / Component coffee-break.
-# Build context: applications/coffee/components/coffee-break — uses Containerfile there (see param defaults).
-# Konflux PaC (.tekton/coffee-break-on-*.yaml) invokes catalog pipeline docker-build-oci-ta with the same
-# path-context and dockerfile; keep those in sync when changing this contract.
+# Tekton Pipeline — Application `coffee` / Component `coffee-break`
+#
+# Source of truth for *what* gets built:
+#   - Git: params `git-url` + `revision` (Konflux PaC sets these from the webhook via {{source_url}}, {{revision}}).
+#   - Context on disk after clone: $(workspaces.shared-data.path)/source/<context-subdir>
+#   - Containerfile: <context-subdir>/$(params.containerfile) — default `Containerfile` under
+#     applications/coffee/components/coffee-break/
+#
+# Konflux CI default: `.tekton/coffee-break-on-*.yaml` runs the **catalog** bundle `docker-build-oci-ta`
+# with the same path + dockerfile as the defaults here (`path-context` / `dockerfile` ↔ `context-subdir` /
+# `containerfile`). If you change defaults, update PaC params and `component.yaml` accordingly.
+#
+# This file can also be referenced directly (e.g. git `pipelineRef` resolver) for manual PipelineRuns.
 ---
 apiVersion: tekton.dev/v1
 kind: Pipeline
@@ -39,6 +48,7 @@ spec:
       description: Optional registry credentials (.dockerconfigjson).
       optional: true
   tasks:
+    # fetch-source — shallow clone of $(params.git-url) at $(params.revision) into workspace `shared-data/source/`.
     - name: fetch-source
       workspaces:
         - name: output
@@ -68,6 +78,8 @@ spec:
               git fetch --depth 1 origin "$(params.revision)" || git fetch origin "$(params.revision)"
               git checkout FETCH_HEAD || git checkout "$(params.revision)"
 
+    # build-and-push — buildah in `context-subdir` using that dir's Containerfile; tags and pushes $(params.image).
+    # Registry credentials: optional workspace `dockerconfig` (.dockerconfigjson) when bound.
     - name: build-and-push
       runAfter: [fetch-source]
       workspaces:

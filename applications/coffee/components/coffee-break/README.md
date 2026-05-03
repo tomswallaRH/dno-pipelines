@@ -1,18 +1,23 @@
 # Component: `coffee-break`
 
-Buildable unit for Konflux **Application** `coffee`: one OCI image from `src/` and root **`Containerfile`**.
+Buildable **Konflux Component** for Application **`coffee`**: Python app in `src/` built from the directory-level **`Containerfile`**.
 
-## Build flow
+## Build process
 
-1. **Konflux / PaC (default)** — Push or PR to `main` triggers `.tekton/coffee-break-on-*.yaml`. The `PipelineRun` uses catalog pipeline **`docker-build-oci-ta`**: fetch Git at `{{revision}}`, build with **`Containerfile`**, push to **`output-image`** (see PaC params: `path-context` + `dockerfile`).
+1. **Konflux / PaC (default path)**  
+   Push or PR to `main` matches `.tekton/coffee-break-on-*.yaml`. The controller creates a `PipelineRun` that runs **`docker-build-oci-ta`**: clone at `{{revision}}`, build with **`Containerfile`** inside **`applications/coffee/components/coffee-break`**, push to **`output-image`**.
 
-2. **Repo pipeline spec** — `applications/coffee/pipelines/coffee-break-pipeline.yaml` describes the same logical steps (clone → buildah `bud` on this directory → `push`) for traceability and optional direct `PipelineRun` use.
+2. **Repo Tekton contract**  
+   `applications/coffee/pipelines/coffee-break-pipeline.yaml` describes the same logical steps (clone → `buildah bud`/`push` on this directory) for documentation and for runs that reference this `Pipeline` directly.
 
-3. **Cluster registration** — `component.yaml` ties **application** `coffee`, **Git URL**, **context** `applications/coffee/components/coffee-break`, and **containerImage** to what Konflux shows in the UI.
+3. **Registration**  
+   `component.yaml` ties **application** `coffee`, **Git URL** / **revision** `main`, **context** `applications/coffee/components/coffee-break`, **dockerfileUrl** `Containerfile`, and **`spec.containerImage`** (image repository without tag).
 
 ## Image output
 
-- **Push builds:** image ref from PaC `output-image` (e.g. `quay.io/redhat-user-workloads/<tenant>/coffee/coffee-break:{{revision}}`).
-- **PR builds:** same registry path with PR-specific tag (e.g. `on-pr-{{revision}}`), often with shorter retention (`image-expires-after`).
+| Event | Tag pattern (see `.tekton/`) | Notes |
+|-------|------------------------------|--------|
+| Push to `main` | `…/coffee-break:{{revision}}` | `revision` = commit SHA; image repo prefix matches `spec.containerImage`. |
+| Pull request | `…/coffee-break:on-pr-{{revision}}` | Short retention via `image-expires-after` in the PR template. |
 
-Runtime: container runs `python /app/app.py` as `nobody`; stdout must include **`Hello World`** for `integration/verify-hello.yaml` to pass.
+Integration test `applications/coffee/integration/verify-hello.yaml` expects the running container to print **`Hello World`** in logs (`src/app.py`).
