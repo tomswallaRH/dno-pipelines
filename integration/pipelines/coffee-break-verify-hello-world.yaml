@@ -1,0 +1,64 @@
+# Konflux integration test: run the snapshot image and assert "Hello World" in logs.
+# Register in Konflux: Application → Integration tests → add scenario pointing at this file
+# (git URL + revision + pathInRepo: integration/pipelines/coffee-break-verify-hello-world.yaml).
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: coffee-break-verify-hello-world
+spec:
+  description: >-
+    Runs the coffee-break container from the snapshot and checks stdout for "Hello World".
+  params:
+    - name: SNAPSHOT
+      description: Snapshot JSON from Konflux (components include containerImage).
+      type: string
+      default: '{"components":[{"name":"coffee-break","containerImage":"docker.io/library/alpine:latest"}]}'
+  tasks:
+    - name: run-image-and-verify-logs
+      params:
+        - name: SNAPSHOT
+          value: $(params.SNAPSHOT)
+      taskSpec:
+        description: kubectl run → logs → grep Hello World → TEST_OUTPUT
+        params:
+          - name: SNAPSHOT
+            type: string
+        results:
+          - name: TEST_OUTPUT
+            type: string
+            description: Standard Konflux integration test result JSON
+        steps:
+          - name: verify
+            image: docker.io/alpine/k8s:1.31.13
+            env:
+              - name: SNAPSHOT
+                value: $(params.SNAPSHOT)
+            script: |
+              #!/bin/sh
+              set -eu
+              NS="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
+              IMAGE="$(echo "${SNAPSHOT}" | jq -r '.components[] | select(.name=="coffee-break") | .containerImage' | head -n1)"
+              if [ -z "${IMAGE}" ] || [ "${IMAGE}" = "null" ]; then
+                echo "ERROR: no containerImage for component coffee-break in SNAPSHOT"
+                exit 1
+              fi
+              echo "Using image: ${IMAGE}"
+              POD="coffee-brk-verify-${RANDOM}"
+              kubectl run "${POD}" --image="${IMAGE}" --restart=Never -n "${NS}" \
+                --requests=cpu=100m,memory=128Mi
+              kubectl wait "pod/${POD}" -n "${NS}" \
+                --for=jsonpath='{.status.phase}'=Succeeded --timeout=120s
+              echo "=== container logs ==="
+              LOGS="$(kubectl logs "pod/${POD}" -n "${NS}")"
+              echo "${LOGS}"
+              kubectl delete pod "${POD}" -n "${NS}" --wait=false >/dev/null 2>&1 || true
+              TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              if echo "${LOGS}" | grep -Fq "Hello World"; then
+                echo -n "{\"result\":\"SUCCESS\",\"timestamp\":\"${TS}\",\"failures\":0,\"successes\":1,\"warnings\":0}" \
+                  | tee "$(results.TEST_OUTPUT.path)"
+                exit 0
+              fi
+              echo -n "{\"result\":\"FAILURE\",\"timestamp\":\"${TS}\",\"note\":\"Expected Hello World in logs\",\"failures\":1,\"successes\":0,\"warnings\":0}" \
+                | tee "$(results.TEST_OUTPUT.path)"
+              exit 1

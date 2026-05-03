@@ -12,11 +12,18 @@ In **both** `.tekton/coffee-break-*.yaml`, replace:
 
 Optional: pin `pipelineRef` to the pipeline bundle digest your Konflux release expects (UI: reset/update build pipeline, or copy from a freshly generated component).
 
+## Integration test (optional)
+
+After a successful component build, Konflux can run an integration test from `integration/pipelines/coffee-break-verify-hello-world.yaml`: it reads the built image from the **SNAPSHOT**, runs a one-off Pod, prints **container logs** to the task log, and fails if `Hello World` is missing.
+
+Register it once: Application → **Integration tests** → add scenario with your repo URL, branch, and path `integration/pipelines/coffee-break-verify-hello-world.yaml` (see `integration/IntegrationTestScenario.example.yaml` for the same fields).
+
 ## Layout
 
 ```
-components/coffee-break/   # Dockerfile only (Hello World on `podman run` / `kubectl run`)
-.tekton/                   # PaC PipelineRuns (push + pull_request)
+components/coffee-break/   # Dockerfile only (Hello World when the image runs)
+.tekton/                   # PaC build (push + pull_request) — unchanged by integration
+integration/pipelines/     # Konflux integration Pipeline (SNAPSHOT → run image → verify logs)
 ```
 
-After a green build, run the image you pushed (image URL is on the PipelineRun) to see `Hello World` in the container logs. Konflux build logs show the build; application output appears when the container **runs**.
+You can still run the pushed image locally (`podman run …`) to see `Hello World` without integration tests.

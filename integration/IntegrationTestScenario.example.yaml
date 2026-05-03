@@ -1,0 +1,26 @@
+# Example only: apply in your Konflux workspace after replacing placeholders, or create the
+# same integration test via the Konflux UI (same git URL, revision, pathInRepo).
+#
+# application: must match your Konflux Application name (often coffee-break for a single-app setup).
+# namespace: your developer/tenant namespace where IntegrationTestScenario lives.
+---
+apiVersion: appstudio.redhat.com/v1beta2
+kind: IntegrationTestScenario
+metadata:
+  name: coffee-break-verify-hello-world
+  namespace: changeme-tenant
+spec:
+  application: coffee-break
+  contexts:
+    - description: Verify coffee-break image prints Hello World
+      name: application
+  resolverRef:
+    resolver: git
+    resourceKind: pipeline
+    params:
+      - name: url
+        value: https://github.com/changeme-org/changeme-repo.git
+      - name: revision
+        value: main
+      - name: pathInRepo
+        value: integration/pipelines/coffee-break-verify-hello-world.yaml
