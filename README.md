@@ -11,7 +11,7 @@ Configured for workspace [**sfathii-tenant**](https://konflux-ui.apps.kflux-prd-
 | `.tekton/dno-pipelines-f97fa-push.yaml` | Push to `main` → build + push |
 | `.tekton/dno-pipelines-f97fa-pull-request.yaml` | PRs targeting `main` → build |
 
-If a build fails with an **output-image** / registry error, open the component in Konflux → use **Edit build** / regenerated pipeline sample and align the `output-image` value with what Konflux expects (paths can be `…/tenant/app/component` or vary by cluster).
+Registry path for this component matches the UI: `quay.io/redhat-user-workloads/sfathii-tenant/dno-pipelines-f97fa:…` (tenant + component only).
 
 ## Integration test (optional)
 

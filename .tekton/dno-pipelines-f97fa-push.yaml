@@ -23,7 +23,7 @@ spec:
     - name: revision
       value: '{{revision}}'
     - name: output-image
-      value: quay.io/redhat-user-workloads/sfathii-tenant/coffee-break/dno-pipelines-f97fa:{{revision}}
+      value: quay.io/redhat-user-workloads/sfathii-tenant/dno-pipelines-f97fa:{{revision}}
     - name: dockerfile
       value: Dockerfile
     - name: path-context
