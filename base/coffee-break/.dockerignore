@@ -1,5 +1,0 @@
-# Keep Konflux/docker build context small (YAML is not part of the image).
-*.yaml
-*.yml
-.git
-**/.git

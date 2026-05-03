@@ -1,6 +1,0 @@
-- op: replace
-  path: /spec/params/2/default
-  value: "sfathii@redhat.com"
-- op: replace
-  path: /spec/params/3/default
-  value: "sfathii@redhat.com" 

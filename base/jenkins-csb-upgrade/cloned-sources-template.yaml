@@ -1,9 +1,0 @@
-# Not a resource to be deployed through argo. Needs to be passed as:
-# `tkn pipeline start jenkins-csb-upgrade --workspace name=cloned-sources,volumeClaimTemplateFile=base/jenkins-csb-upgrade/cloned-sources-template.yaml`
-
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi

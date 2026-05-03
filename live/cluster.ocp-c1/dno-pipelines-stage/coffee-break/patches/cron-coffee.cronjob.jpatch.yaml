@@ -1,6 +1,0 @@
-- op: replace
-  path: /spec/jobTemplate/spec/template/spec/containers/0/args/4
-  value: http://el-coffee-break.dno-pipelines-stage.svc.cluster.local:8080
-- op: replace
-  path: /spec/schedule
-  value: "0 0 29 2 1"
