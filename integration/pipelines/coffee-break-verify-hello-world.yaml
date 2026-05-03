@@ -8,12 +8,12 @@ metadata:
   name: coffee-break-verify-hello-world
 spec:
   description: >-
-    Runs the coffee-break container from the snapshot and checks stdout for "Hello World".
+    Runs the dno-pipelines-f97fa component image from the snapshot and checks stdout for "Hello World".
   params:
     - name: SNAPSHOT
       description: Snapshot JSON from Konflux (components include containerImage).
       type: string
-      default: '{"components":[{"name":"coffee-break","containerImage":"docker.io/library/alpine:latest"}]}'
+      default: '{"components":[{"name":"dno-pipelines-f97fa","containerImage":"docker.io/library/alpine:latest"}]}'
   tasks:
     - name: run-image-and-verify-logs
       params:
@@ -38,9 +38,9 @@ spec:
               #!/bin/sh
               set -eu
               NS="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
-              IMAGE="$(echo "${SNAPSHOT}" | jq -r '.components[] | select(.name=="coffee-break") | .containerImage' | head -n1)"
+              IMAGE="$(echo "${SNAPSHOT}" | jq -r '.components[] | select(.name=="dno-pipelines-f97fa") | .containerImage' | head -n1)"
               if [ -z "${IMAGE}" ] || [ "${IMAGE}" = "null" ]; then
-                echo "ERROR: no containerImage for component coffee-break in SNAPSHOT"
+                echo "ERROR: no containerImage for component dno-pipelines-f97fa in SNAPSHOT"
                 exit 1
               fi
               echo "Using image: ${IMAGE}"

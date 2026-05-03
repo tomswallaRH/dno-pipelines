@@ -1,29 +1,26 @@
-# dno-pipelines (coffee-break only)
+# dno-pipelines — Konflux component `dno-pipelines-f97fa`
 
-Minimal [Konflux](https://konflux-ci.dev/docs/) component: one container image built from `components/coffee-break/` via Pipelines as Code (`.tekton/`).
+Minimal [Konflux](https://konflux-ci.dev/docs/) build: image from `components/coffee-break/`, Pipelines as Code under [`.tekton/`](.tekton/).
 
-## Before you onboard
+Configured for workspace [**sfathii-tenant**](https://konflux-ui.apps.kflux-prd-rh02.0fk9.p1.openshiftapps.com/ns/sfathii-tenant/applications/coffee-break/components/dno-pipelines-f97fa/), application **coffee-break**, component **dno-pipelines-f97fa** (Git: [`tomswallaRH/dno-pipelines`](https://github.com/tomswallaRH/dno-pipelines)).
 
-In **both** `.tekton/coffee-break-*.yaml`, replace:
+## PaC files
 
-1. `changeme-tenant` in `metadata.namespace` and in `spec.params.output-image` (Quay path must match your workspace).
-2. `build.appstudio.openshift.io/repo` with your Git clone URL (same pattern Konflux shows when importing the repo).
-3. `appstudio.openshift.io/application` and `appstudio.openshift.io/component` labels if your Konflux Application/Component names differ from `coffee-break`.
+| File | Purpose |
+|------|---------|
+| `.tekton/dno-pipelines-f97fa-push.yaml` | Push to `main` → build + push |
+| `.tekton/dno-pipelines-f97fa-pull-request.yaml` | PRs targeting `main` → build |
 
-Optional: pin `pipelineRef` to the pipeline bundle digest your Konflux release expects (UI: reset/update build pipeline, or copy from a freshly generated component).
+If a build fails with an **output-image** / registry error, open the component in Konflux → use **Edit build** / regenerated pipeline sample and align the `output-image` value with what Konflux expects (paths can be `…/tenant/app/component` or vary by cluster).
 
 ## Integration test (optional)
 
-After a successful component build, Konflux can run an integration test from `integration/pipelines/coffee-break-verify-hello-world.yaml`: it reads the built image from the **SNAPSHOT**, runs a one-off Pod, prints **container logs** to the task log, and fails if `Hello World` is missing.
-
-Register it once: Application → **Integration tests** → add scenario with your repo URL, branch, and path `integration/pipelines/coffee-break-verify-hello-world.yaml` (see `integration/IntegrationTestScenario.example.yaml` for the same fields).
+`integration/pipelines/coffee-break-verify-hello-world.yaml` targets snapshot component **`dno-pipelines-f97fa`**. Register via UI or `integration/IntegrationTestScenario.example.yaml`.
 
 ## Layout
 
 ```
-components/coffee-break/   # Dockerfile only (Hello World when the image runs)
-.tekton/                   # PaC build (push + pull_request) — unchanged by integration
-integration/pipelines/     # Konflux integration Pipeline (SNAPSHOT → run image → verify logs)
+components/coffee-break/   # Dockerfile (prints Hello World when run)
+.tekton/                   # PaC PipelineRuns for dno-pipelines-f97fa
+integration/pipelines/     # Optional integration Pipeline
 ```
-
-You can still run the pushed image locally (`podman run …`) to see `Hello World` without integration tests.

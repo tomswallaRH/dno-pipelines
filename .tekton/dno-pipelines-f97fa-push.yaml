@@ -1,22 +1,21 @@
-# Minimal Konflux / Pipelines-as-Code: build and push on merge to main.
-# Replace: metadata.namespace, output-image registry path, build.appstudio.openshift.io/repo.
+# Pipelines as Code — push build for Konflux component dno-pipelines-f97fa (app: coffee-break, ns: sfathii-tenant).
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
   annotations:
-    build.appstudio.openshift.io/repo: https://github.com/changeme-org/changeme-repo?rev={{revision}}
+    build.appstudio.openshift.io/repo: https://github.com/tomswallaRH/dno-pipelines?rev={{revision}}
     build.appstudio.redhat.com/commit_sha: '{{revision}}'
     build.appstudio.redhat.com/target_branch: '{{target_branch}}'
     pipelinesascode.tekton.dev/cancel-in-progress: "false"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "main"
-      && ( "components/coffee-break/***".pathChanged() || ".tekton/coffee-break-push.yaml".pathChanged() )
+      && ( "components/coffee-break/***".pathChanged() || ".tekton/dno-pipelines-f97fa-push.yaml".pathChanged() )
   labels:
     appstudio.openshift.io/application: coffee-break
-    appstudio.openshift.io/component: coffee-break
+    appstudio.openshift.io/component: dno-pipelines-f97fa
     pipelines.appstudio.openshift.io/type: build
-  name: coffee-break-on-push
-  namespace: changeme-tenant
+  name: dno-pipelines-f97fa-on-push
+  namespace: sfathii-tenant
 spec:
   params:
     - name: git-url
@@ -24,7 +23,7 @@ spec:
     - name: revision
       value: '{{revision}}'
     - name: output-image
-      value: quay.io/redhat-user-workloads/changeme-tenant/coffee-break:{{revision}}
+      value: quay.io/redhat-user-workloads/sfathii-tenant/coffee-break/dno-pipelines-f97fa:{{revision}}
     - name: dockerfile
       value: Dockerfile
     - name: path-context
@@ -51,7 +50,7 @@ spec:
         value: pipeline
     resolver: bundles
   taskRunTemplate:
-    serviceAccountName: build-pipeline-coffee-break
+    serviceAccountName: build-pipeline-dno-pipelines-f97fa
   workspaces:
     - name: git-auth
       secret:
