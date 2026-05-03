@@ -1,21 +1,22 @@
-# Pipelines as Code — PR build for component hello-world (Application: coffee, ns: sfathii-tenant).
+# Pipelines as Code — push build for component coffee-break (Application: coffee, ns: sfathii-tenant).
+# Build contract (repo): applications/coffee/pipelines/coffee-break-pipeline.yaml — same context + Containerfile.
+# Effective execution: Konflux bundle pipeline docker-build-oci-ta (params below must match component.yaml).
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
   annotations:
-    build.appstudio.openshift.io/repo: https://github.com/tomswallaRH/dno-pipelines?rev={{revision}}
+    build.appstudio.openshift.io/repo: https://github.com/tomswallaRH/dno-automation-services?rev={{revision}}
     build.appstudio.redhat.com/commit_sha: '{{revision}}'
-    build.appstudio.redhat.com/pull_request_number: '{{pull_request_number}}'
     build.appstudio.redhat.com/target_branch: '{{target_branch}}'
-    pipelinesascode.tekton.dev/cancel-in-progress: "true"
+    pipelinesascode.tekton.dev/cancel-in-progress: "false"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
-    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch == "main"
-      && ( "hello-world/***".pathChanged() || ".tekton/hello-world-pull-request.yaml".pathChanged() )
+    pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "main"
+      && ( "applications/coffee/components/coffee-break/***".pathChanged() || ".tekton/coffee-break-on-push.yaml".pathChanged() )
   labels:
     appstudio.openshift.io/application: coffee
-    appstudio.openshift.io/component: hello-world
+    appstudio.openshift.io/component: coffee-break
     pipelines.appstudio.openshift.io/type: build
-  name: hello-world-on-pull-request
+  name: coffee-break-on-push
   namespace: sfathii-tenant
 spec:
   params:
@@ -24,13 +25,13 @@ spec:
     - name: revision
       value: '{{revision}}'
     - name: output-image
-      value: quay.io/redhat-user-workloads/sfathii-tenant/coffee/hello-world:on-pr-{{revision}}
+      value: quay.io/redhat-user-workloads/sfathii-tenant/coffee/coffee-break:{{revision}}
     - name: dockerfile
       value: Containerfile
     - name: path-context
-      value: hello-world
+      value: applications/coffee/components/coffee-break
     - name: image-expires-after
-      value: 5d
+      value: ""
     - name: skip-checks
       value: "true"
     - name: hermetic
@@ -51,7 +52,7 @@ spec:
         value: pipeline
     resolver: bundles
   taskRunTemplate:
-    serviceAccountName: build-pipeline-hello-world
+    serviceAccountName: build-pipeline-coffee-break
   workspaces:
     - name: git-auth
       secret:

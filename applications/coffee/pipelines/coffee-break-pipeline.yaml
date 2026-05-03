@@ -1,0 +1,117 @@
+# Tekton Pipeline: fetch-source → build + push (buildah) for Application coffee / Component coffee-break.
+# Build context: applications/coffee/components/coffee-break — uses Containerfile there (see param defaults).
+# Konflux PaC (.tekton/coffee-break-on-*.yaml) invokes catalog pipeline docker-build-oci-ta with the same
+# path-context and dockerfile; keep those in sync when changing this contract.
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: coffee-break-pipeline
+  labels:
+    appstudio.openshift.io/application: coffee
+    appstudio.openshift.io/component: coffee-break
+spec:
+  description: >-
+    Clone repository, build the coffee-break component image (Containerfile under
+    applications/coffee/components/coffee-break) with buildah, and push to a container registry.
+  params:
+    - name: git-url
+      type: string
+      description: Git repository URL (HTTPS).
+    - name: revision
+      type: string
+      description: Git revision (branch, tag, or SHA).
+    - name: image
+      type: string
+      description: Fully qualified image reference to push (including tag).
+    - name: context-subdir
+      type: string
+      default: applications/coffee/components/coffee-break
+      description: Path from repo root to the container build context.
+    - name: containerfile
+      type: string
+      default: Containerfile
+      description: Dockerfile/Containerfile name relative to context.
+  workspaces:
+    - name: shared-data
+      description: Clone output and OCI build working directory.
+    - name: dockerconfig
+      description: Optional registry credentials (.dockerconfigjson).
+      optional: true
+  tasks:
+    - name: fetch-source
+      workspaces:
+        - name: output
+          workspace: shared-data
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.revision)
+      taskSpec:
+        workspaces:
+          - name: output
+        params:
+          - name: url
+            type: string
+          - name: revision
+            type: string
+        steps:
+          - name: clone
+            image: registry.access.redhat.com/ubi9/git:latest
+            script: |
+              #!/bin/bash
+              set -euo pipefail
+              rm -rf "$(workspaces.output.path)/source"/*
+              git clone --no-checkout "$(params.url)" "$(workspaces.output.path)/source"
+              cd "$(workspaces.output.path)/source"
+              git fetch --depth 1 origin "$(params.revision)" || git fetch origin "$(params.revision)"
+              git checkout FETCH_HEAD || git checkout "$(params.revision)"
+
+    - name: build-and-push
+      runAfter: [fetch-source]
+      workspaces:
+        - name: w
+          workspace: shared-data
+        - name: dockerconfig
+          workspace: dockerconfig
+      params:
+        - name: image
+          value: $(params.image)
+        - name: context-subdir
+          value: $(params.context-subdir)
+        - name: containerfile
+          value: $(params.containerfile)
+      taskSpec:
+        workspaces:
+          - name: w
+          - name: dockerconfig
+            optional: true
+        params:
+          - name: image
+            type: string
+          - name: context-subdir
+            type: string
+          - name: containerfile
+            type: string
+        steps:
+          - name: build-and-push
+            image: quay.io/buildah/stable:latest
+            securityContext:
+              capabilities:
+                add: ["SETFCAP"]
+            script: |
+              #!/bin/sh
+              set -eu
+              export STORAGE_DRIVER=vfs
+              DOCKERCFG="$(workspaces.dockerconfig.path)"
+              if [ -n "${DOCKERCFG}" ] && [ -f "${DOCKERCFG}/config.json" ]; then
+                mkdir -p /root/.docker
+                cp "${DOCKERCFG}/config.json" /root/.docker/config.json
+              fi
+              CTX="$(workspaces.w.path)/source/$(params.context-subdir)"
+              buildah bud --layers --format docker \
+                -f "${CTX}/$(params.containerfile)" \
+                -t "$(params.image)" \
+                "${CTX}"
+              buildah push "$(params.image)"

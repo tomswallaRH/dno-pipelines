@@ -1,22 +1,34 @@
-# dno-pipelines — Konflux **coffee** / **coffee-break**
+# dno-automation-services — Konflux layout
 
-Build context: `components/coffee-break/`. Pipelines as Code: [`.tekton/coffee-break-*.yaml`](.tekton/).
+This repository is **dno-automation-services**: Konflux automation (applications, components, Tekton pipelines, and Pipelines as Code triggers).
 
-- **Application:** `coffee`
-- **Component:** `coffee-break` (must match the component name in Konflux)
-- **Namespace:** `sfathii-tenant`
+Structure follows **Application → Component → image**, with Tekton as an implementation detail and **Pipelines as Code** only under `.tekton/`.
 
-Image push target (adjust if the UI shows a different Quay path):
+## Concepts
 
-`quay.io/redhat-user-workloads/sfathii-tenant/coffee/coffee-break:<tag>`
+| Term | Meaning |
+|------|---------|
+| **Application** | Logical product boundary in Konflux (here: `coffee`). See `applications/coffee/README.md`. |
+| **Component** | Buildable unit: source + `Containerfile` producing one container image (`coffee-break` under `applications/coffee/components/coffee-break/`). Declared in Konflux via `Component` CR; `component.yaml` mirrors the spec in Git. |
+| **Pipeline** | Tekton `Pipeline` YAML under `applications/<app>/pipelines/`. **CI triggers** live only in **`.tekton/`** as PaC `PipelineRun` templates that invoke the Konflux **docker-build-oci-ta** bundle with the same `path-context` and `Containerfile` as the repo pipeline spec. |
 
-If push fails with a registry path error, copy **`output-image`** from the component’s **Edit build pipeline** sample in Konflux (some clusters use `…/tenant/coffee-break` without the `coffee/` segment).
+## Directory layout
 
-## Run the pipeline
+- `applications/coffee/` — application boundary: `README.md`, `components/`, `pipelines/`, `integration/`.
+- `applications/coffee/components/coffee-break/` — source (`src/`), `Containerfile`, `component.yaml`, `.dockerignore`.
+- `applications/coffee/pipelines/coffee-break-pipeline.yaml` — reference pipeline (clone → buildah → push) for this component.
+- `applications/coffee/integration/` — integration `Pipeline` and example `IntegrationTestScenario`.
+- `.tekton/` — PaC: `coffee-break-on-push.yaml`, `coffee-break-on-pr.yaml`.
 
-1. In Konflux: **Application `coffee` → component `coffee-break`** — ensure the Git source is `tomswallaRH/dno-pipelines` and Pipelines as Code is installed for that repo.
-2. **Push to `main`** (or open/update a PR to `main`) after this repo’s `.tekton/` and `components/coffee-break/` are on GitHub. That triggers **`coffee-break-on-push`** or **`coffee-break-on-pull-request`**.
+## How a push becomes a `PipelineRun`
 
-## Integration test (optional)
+1. Konflux **Pipelines as Code** is registered for `https://github.com/tomswallaRH/dno-automation-services` (or your fork).
+2. On **push** or **pull_request** to `main`, PaC evaluates `.tekton/*.yaml` CEL rules.
+3. Changes under `applications/coffee/components/coffee-break/**` (or the PaC file) instantiate a **`PipelineRun`** labeled Application `coffee`, Component `coffee-break`.
+4. The run uses **bundle** pipeline `docker-build-oci-ta` with `path-context: applications/coffee/components/coffee-break` and `dockerfile: Containerfile`, matching `coffee-break-pipeline.yaml` and `component.yaml`.
 
-See `integration/pipelines/coffee-break-verify-hello-world.yaml` and `integration/IntegrationTestScenario.example.yaml` (`spec.application: coffee`).
+Adjust `namespace`, `output-image`, `build.appstudio.openshift.io/repo`, and `component.yaml` for your tenant and registry.
+
+## Integration test
+
+Register **IntegrationTestScenario** with `pathInRepo: applications/coffee/integration/verify-hello.yaml` (see `applications/coffee/integration/IntegrationTestScenario.example.yaml`).

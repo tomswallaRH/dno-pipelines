@@ -1,0 +1,9 @@
+FROM docker.io/library/python:3.12-alpine
+
+WORKDIR /app
+
+COPY src/app.py .
+
+USER nobody
+
+CMD ["python", "/app/app.py"]

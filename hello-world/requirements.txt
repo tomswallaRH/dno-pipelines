@@ -1,2 +1,0 @@
-# No third-party dependencies; stdlib only.
-# Pin file kept so Konflux image builds have a stable dependency layer.

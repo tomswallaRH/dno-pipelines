@@ -1,6 +1,5 @@
 # Konflux integration test: run the snapshot image and assert "Hello World" in logs.
-# Register in Konflux: Application → Integration tests → add scenario pointing at this file
-# (git URL + revision + pathInRepo: integration/pipelines/coffee-break-verify-hello-world.yaml).
+# Register in Konflux: Application → Integration tests → scenario with pathInRepo pointing here.
 ---
 apiVersion: tekton.dev/v1
 kind: Pipeline
