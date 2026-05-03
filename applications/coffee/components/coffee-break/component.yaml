@@ -10,7 +10,7 @@ spec:
   containerImage: quay.io/redhat-user-workloads/sfathii-tenant/coffee/coffee-break
   source:
     git:
-      url: https://github.com/tomswallaRH/dno-automation-services.git
+      url: https://github.com/tomswallaRH/dno-pipelines.git
       revision: main
       context: applications/coffee/components/coffee-break
       dockerfileUrl: Containerfile

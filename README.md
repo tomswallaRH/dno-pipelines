@@ -22,7 +22,7 @@ Structure follows **Application → Component → image**, with Tekton as an imp
 
 ## How a push becomes a `PipelineRun`
 
-1. Konflux **Pipelines as Code** is registered for `https://github.com/tomswallaRH/dno-automation-services` (or your fork).
+1. Konflux **Pipelines as Code** is registered for `https://github.com/tomswallaRH/dno-pipelines` (or your fork). After renaming this GitHub repo to **dno-automation-services**, update URLs in `component.yaml`, `.tekton/*.yaml`, and `IntegrationTestScenario.example.yaml`.
 2. On **push** or **pull_request** to `main`, PaC evaluates `.tekton/*.yaml` CEL rules.
 3. Changes under `applications/coffee/components/coffee-break/**` (or the PaC file) instantiate a **`PipelineRun`** labeled Application `coffee`, Component `coffee-break`.
 4. The run uses **bundle** pipeline `docker-build-oci-ta` with `path-context: applications/coffee/components/coffee-break` and `dockerfile: Containerfile`, matching `coffee-break-pipeline.yaml` and `component.yaml`.
