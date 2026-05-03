@@ -1,0 +1,58 @@
+# Pipelines as Code — PR build for component hello-world (Application: coffee, ns: sfathii-tenant).
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  annotations:
+    build.appstudio.openshift.io/repo: https://github.com/tomswallaRH/dno-pipelines?rev={{revision}}
+    build.appstudio.redhat.com/commit_sha: '{{revision}}'
+    build.appstudio.redhat.com/pull_request_number: '{{pull_request_number}}'
+    build.appstudio.redhat.com/target_branch: '{{target_branch}}'
+    pipelinesascode.tekton.dev/cancel-in-progress: "true"
+    pipelinesascode.tekton.dev/max-keep-runs: "3"
+    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch == "main"
+      && ( "hello-world/***".pathChanged() || ".tekton/hello-world-pull-request.yaml".pathChanged() )
+  labels:
+    appstudio.openshift.io/application: coffee
+    appstudio.openshift.io/component: hello-world
+    pipelines.appstudio.openshift.io/type: build
+  name: hello-world-on-pull-request
+  namespace: sfathii-tenant
+spec:
+  params:
+    - name: git-url
+      value: '{{source_url}}'
+    - name: revision
+      value: '{{revision}}'
+    - name: output-image
+      value: quay.io/redhat-user-workloads/sfathii-tenant/coffee/hello-world:on-pr-{{revision}}
+    - name: dockerfile
+      value: Containerfile
+    - name: path-context
+      value: hello-world
+    - name: image-expires-after
+      value: 5d
+    - name: skip-checks
+      value: "true"
+    - name: hermetic
+      value: "false"
+    - name: prefetch-input
+      value: ""
+    - name: build-source-image
+      value: "false"
+    - name: build-image-index
+      value: "false"
+  pipelineRef:
+    params:
+      - name: bundle
+        value: quay.io/konflux-ci/tekton-catalog/pipeline-docker-build-oci-ta@sha256:f447630920c09c62cc11446c7ce03a6e007f4936f7169e79d2383bb09d46f47b
+      - name: name
+        value: docker-build-oci-ta
+      - name: kind
+        value: pipeline
+    resolver: bundles
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-hello-world
+  workspaces:
+    - name: git-auth
+      secret:
+        secretName: '{{ git_auth_secret }}'

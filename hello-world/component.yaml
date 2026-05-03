@@ -2,14 +2,14 @@ apiVersion: appstudio.redhat.com/v1alpha1
 kind: Component
 metadata:
   name: hello-world
-  # Replace with your Konflux / App Studio workspace namespace.
-  namespace: my-tenant-workspace
+  namespace: sfathii-tenant
 spec:
-  application: hello-world-app
+  application: coffee
   componentName: hello-world
-  containerImage: quay.io/your-user/hello-world
+  containerImage: quay.io/redhat-user-workloads/sfathii-tenant/coffee/hello-world
   source:
     git:
-      url: https://github.com/your-user/hello-world
+      url: https://github.com/tomswallaRH/dno-pipelines
       revision: main
+      context: hello-world
       dockerfileUrl: Containerfile
