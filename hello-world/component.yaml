@@ -1,0 +1,15 @@
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: Component
+metadata:
+  name: hello-world
+  # Replace with your Konflux / App Studio workspace namespace.
+  namespace: my-tenant-workspace
+spec:
+  application: hello-world-app
+  componentName: hello-world
+  containerImage: quay.io/your-user/hello-world
+  source:
+    git:
+      url: https://github.com/your-user/hello-world
+      revision: main
+      dockerfileUrl: Containerfile
