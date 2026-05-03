@@ -1,26 +1,22 @@
-# dno-pipelines — Konflux component `dno-pipelines-f97fa`
+# dno-pipelines — Konflux **coffee** / **coffee-break**
 
-Minimal [Konflux](https://konflux-ci.dev/docs/) build: image from `components/coffee-break/`, Pipelines as Code under [`.tekton/`](.tekton/).
+Build context: `components/coffee-break/`. Pipelines as Code: [`.tekton/coffee-break-*.yaml`](.tekton/).
 
-Configured for workspace [**sfathii-tenant**](https://konflux-ui.apps.kflux-prd-rh02.0fk9.p1.openshiftapps.com/ns/sfathii-tenant/applications/coffee-break/components/dno-pipelines-f97fa/), application **coffee-break**, component **dno-pipelines-f97fa** (Git: [`tomswallaRH/dno-pipelines`](https://github.com/tomswallaRH/dno-pipelines)).
+- **Application:** `coffee`
+- **Component:** `coffee-break` (must match the component name in Konflux)
+- **Namespace:** `sfathii-tenant`
 
-## PaC files
+Image push target (adjust if the UI shows a different Quay path):
 
-| File | Purpose |
-|------|---------|
-| `.tekton/dno-pipelines-f97fa-push.yaml` | Push to `main` → build + push |
-| `.tekton/dno-pipelines-f97fa-pull-request.yaml` | PRs targeting `main` → build |
+`quay.io/redhat-user-workloads/sfathii-tenant/coffee/coffee-break:<tag>`
 
-Registry path for this component matches the UI: `quay.io/redhat-user-workloads/sfathii-tenant/dno-pipelines-f97fa:…` (tenant + component only).
+If push fails with a registry path error, copy **`output-image`** from the component’s **Edit build pipeline** sample in Konflux (some clusters use `…/tenant/coffee-break` without the `coffee/` segment).
+
+## Run the pipeline
+
+1. In Konflux: **Application `coffee` → component `coffee-break`** — ensure the Git source is `tomswallaRH/dno-pipelines` and Pipelines as Code is installed for that repo.
+2. **Push to `main`** (or open/update a PR to `main`) after this repo’s `.tekton/` and `components/coffee-break/` are on GitHub. That triggers **`coffee-break-on-push`** or **`coffee-break-on-pull-request`**.
 
 ## Integration test (optional)
 
-`integration/pipelines/coffee-break-verify-hello-world.yaml` targets snapshot component **`dno-pipelines-f97fa`**. Register via UI or `integration/IntegrationTestScenario.example.yaml`.
-
-## Layout
-
-```
-components/coffee-break/   # Dockerfile (prints Hello World when run)
-.tekton/                   # PaC PipelineRuns for dno-pipelines-f97fa
-integration/pipelines/     # Optional integration Pipeline
-```
+See `integration/pipelines/coffee-break-verify-hello-world.yaml` and `integration/IntegrationTestScenario.example.yaml` (`spec.application: coffee`).

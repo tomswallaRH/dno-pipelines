@@ -1,4 +1,4 @@
-# Pipelines as Code — push build for Konflux component dno-pipelines-f97fa (app: coffee-break, ns: sfathii-tenant).
+# Pipelines as Code — push build for component coffee-break (Application: coffee, ns: sfathii-tenant).
 apiVersion: tekton.dev/v1
 kind: PipelineRun
 metadata:
@@ -9,12 +9,12 @@ metadata:
     pipelinesascode.tekton.dev/cancel-in-progress: "false"
     pipelinesascode.tekton.dev/max-keep-runs: "3"
     pipelinesascode.tekton.dev/on-cel-expression: event == "push" && target_branch == "main"
-      && ( "components/coffee-break/***".pathChanged() || ".tekton/dno-pipelines-f97fa-push.yaml".pathChanged() )
+      && ( "components/coffee-break/***".pathChanged() || ".tekton/coffee-break-push.yaml".pathChanged() )
   labels:
-    appstudio.openshift.io/application: coffee-break
-    appstudio.openshift.io/component: dno-pipelines-f97fa
+    appstudio.openshift.io/application: coffee
+    appstudio.openshift.io/component: coffee-break
     pipelines.appstudio.openshift.io/type: build
-  name: dno-pipelines-f97fa-on-push
+  name: coffee-break-on-push
   namespace: sfathii-tenant
 spec:
   params:
@@ -23,7 +23,7 @@ spec:
     - name: revision
       value: '{{revision}}'
     - name: output-image
-      value: quay.io/redhat-user-workloads/sfathii-tenant/dno-pipelines-f97fa:{{revision}}
+      value: quay.io/redhat-user-workloads/sfathii-tenant/coffee/coffee-break:{{revision}}
     - name: dockerfile
       value: Dockerfile
     - name: path-context
@@ -50,7 +50,7 @@ spec:
         value: pipeline
     resolver: bundles
   taskRunTemplate:
-    serviceAccountName: build-pipeline-dno-pipelines-f97fa
+    serviceAccountName: build-pipeline-coffee-break
   workspaces:
     - name: git-auth
       secret:

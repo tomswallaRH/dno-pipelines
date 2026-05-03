@@ -1,5 +1,4 @@
-# Example IntegrationTestScenario for namespace sfathii-tenant / application coffee-break.
-# Apply with oc/kubectl or mirror these fields in Konflux UI → Integration tests.
+# Example IntegrationTestScenario for Application coffee / component coffee-break.
 ---
 apiVersion: appstudio.redhat.com/v1beta2
 kind: IntegrationTestScenario
@@ -7,9 +6,9 @@ metadata:
   name: coffee-break-verify-hello-world
   namespace: sfathii-tenant
 spec:
-  application: coffee-break
+  application: coffee
   contexts:
-    - description: Verify dno-pipelines-f97fa image prints Hello World
+    - description: Verify coffee-break image prints Hello World
       name: application
   resolverRef:
     resolver: git
