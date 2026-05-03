@@ -1,2 +1,2 @@
-FROM docker.io/library/alpine:3.20
+FROM docker.io/library/alpine:3.23
 CMD ["sh", "-c", "echo Hello World"]
