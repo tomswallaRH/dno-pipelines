@@ -1,4 +1,5 @@
-FROM docker.io/library/python:3.12-alpine
+# UBI image — Konflux build clusters often deny docker.io pulls; this registry is typically allowed.
+FROM registry.access.redhat.com/ubi9/python-312:latest
 
 WORKDIR /app
 
@@ -6,6 +7,4 @@ COPY src/app.py .
 
 EXPOSE 8080
 
-USER nobody
-
-CMD ["python", "/app/app.py"]
+CMD ["/usr/bin/python3", "/app/app.py"]

@@ -96,10 +96,10 @@ spec:
             type: string
         steps:
           - name: py-compile
-            image: docker.io/library/python:3.12-alpine
+            image: registry.access.redhat.com/ubi9/python-312:latest
             script: |
-              #!/bin/sh
-              set -eu
+              #!/bin/bash
+              set -euo pipefail
               SRC="$(workspaces.w.path)/source/$(params.context-subdir)/src/app.py"
               python3 -m py_compile "${SRC}"
               echo "py_compile OK: ${SRC}"
