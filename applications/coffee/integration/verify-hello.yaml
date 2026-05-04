@@ -1,9 +1,5 @@
-# Konflux integration test: run the **coffee-break** image from the ApplicationSnapshot and assert logs.
-# Konflux supplies SNAPSHOT JSON (components[].name / .containerImage). This pipeline selects the
-# component named `coffee-break` — same name as metadata in applications/coffee/components/coffee-break/component.yaml.
-#
-# Register: Application → Integration tests → IntegrationTestScenario with pathInRepo =
-#   applications/coffee/integration/verify-hello.yaml
+# Integration test: run coffee-break image, wait for Ready, HTTP GET / → body contains "OK".
+# Register: Application → Integration tests → pathInRepo = applications/coffee/integration/verify-hello.yaml
 ---
 apiVersion: tekton.dev/v1
 kind: Pipeline
@@ -14,28 +10,27 @@ metadata:
     appstudio.openshift.io/component: coffee-break
 spec:
   description: >-
-    Runs the coffee-break component image from the snapshot and checks stdout for "Hello World".
+    Deploy coffee-break from SNAPSHOT, wait for pod Ready, curl :8080/, assert response contains OK.
   params:
     - name: SNAPSHOT
       description: >-
-        Snapshot JSON from Konflux. Must include a component with name "coffee-break" and
-        containerImage set to the image built for that snapshot (same registry path as spec.containerImage in component.yaml).
+        Snapshot JSON. Must include component name "coffee-break" and containerImage for that build.
       type: string
       default: '{"components":[{"name":"coffee-break","containerImage":"quay.io/redhat-user-workloads/sfathii-tenant/coffee/coffee-break:latest"}]}'
   tasks:
-    - name: run-image-and-verify-logs
+    - name: deploy-and-http-check
       params:
         - name: SNAPSHOT
           value: $(params.SNAPSHOT)
       taskSpec:
-        description: kubectl run → logs → grep Hello World → TEST_OUTPUT
+        description: kubectl run app → Ready → wget GET / → grep OK → TEST_OUTPUT
         params:
           - name: SNAPSHOT
             type: string
         results:
           - name: TEST_OUTPUT
             type: string
-            description: Standard Konflux integration test result JSON
+            description: Konflux integration test result JSON
         steps:
           - name: verify
             image: docker.io/alpine/k8s:1.31.13
@@ -52,21 +47,29 @@ spec:
                 exit 1
               fi
               echo "Using image: ${IMAGE}"
-              POD="coffee-brk-verify-${RANDOM}"
-              kubectl run "${POD}" --image="${IMAGE}" --restart=Never -n "${NS}" \
+              APP_POD="coffee-brk-app-${RANDOM}"
+              kubectl run "${APP_POD}" --image="${IMAGE}" --restart=Never -n "${NS}" \
+                --port=8080 \
                 --requests=cpu=100m,memory=128Mi
-              kubectl wait "pod/${POD}" -n "${NS}" \
-                --for=jsonpath='{.status.phase}'=Succeeded --timeout=120s
-              echo "=== container logs ==="
-              LOGS="$(kubectl logs "pod/${POD}" -n "${NS}")"
-              echo "${LOGS}"
-              kubectl delete pod "${POD}" -n "${NS}" --wait=false >/dev/null 2>&1 || true
+              kubectl wait "pod/${APP_POD}" -n "${NS}" --for=condition=Ready --timeout=120s
+              POD_IP="$(kubectl get "pod/${APP_POD}" -n "${NS}" -o jsonpath='{.status.podIP}')"
+              echo "Pod IP: ${POD_IP}"
+              CURL_POD="coffee-brk-curl-${RANDOM}"
+              kubectl run "${CURL_POD}" --image=docker.io/library/busybox:1.36 --restart=Never -n "${NS}" -- \
+                wget -qO- "http://${POD_IP}:8080/"
+              kubectl wait "pod/${CURL_POD}" -n "${NS}" \
+                --for=jsonpath='{.status.phase}'=Succeeded --timeout=60s
+              echo "=== wget (HTTP body) logs ==="
+              BODY="$(kubectl logs "pod/${CURL_POD}" -n "${NS}")"
+              echo "${BODY}"
+              kubectl delete pod "${CURL_POD}" -n "${NS}" --wait=false >/dev/null 2>&1 || true
+              kubectl delete pod "${APP_POD}" -n "${NS}" --wait=false >/dev/null 2>&1 || true
               TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-              if echo "${LOGS}" | grep -Fq "Hello World"; then
+              if echo "${BODY}" | grep -Fq "OK"; then
                 echo -n "{\"result\":\"SUCCESS\",\"timestamp\":\"${TS}\",\"failures\":0,\"successes\":1,\"warnings\":0}" \
                   | tee "$(results.TEST_OUTPUT.path)"
                 exit 0
               fi
-              echo -n "{\"result\":\"FAILURE\",\"timestamp\":\"${TS}\",\"note\":\"Expected Hello World in logs\",\"failures\":1,\"successes\":0,\"warnings\":0}" \
+              echo -n "{\"result\":\"FAILURE\",\"timestamp\":\"${TS}\",\"note\":\"Expected OK in HTTP response\",\"failures\":1,\"successes\":0,\"warnings\":0}" \
                 | tee "$(results.TEST_OUTPUT.path)"
               exit 1

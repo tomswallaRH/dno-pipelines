@@ -4,6 +4,8 @@ WORKDIR /app
 
 COPY src/app.py .
 
+EXPOSE 8080
+
 USER nobody
 
 CMD ["python", "/app/app.py"]

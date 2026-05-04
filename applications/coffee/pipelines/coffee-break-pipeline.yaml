@@ -21,8 +21,9 @@ metadata:
     appstudio.openshift.io/component: coffee-break
 spec:
   description: >-
-    Clone repository, build the coffee-break component image (Containerfile under
-    applications/coffee/components/coffee-break) with buildah, and push to a container registry.
+    Clone → quick source test (py_compile) → build/push coffee-break. After the image is in the
+    registry, Konflux runs integration tests (e.g. applications/coffee/integration/verify-hello.yaml)
+    from an ApplicationSnapshot — that is the HTTP “OK” check in-cluster.
   params:
     - name: git-url
       type: string
@@ -78,10 +79,35 @@ spec:
               git fetch --depth 1 origin "$(params.revision)" || git fetch origin "$(params.revision)"
               git checkout FETCH_HEAD || git checkout "$(params.revision)"
 
+    # Minimal test before image build (same Python as Containerfile).
+    - name: test-source
+      runAfter: [fetch-source]
+      workspaces:
+        - name: w
+          workspace: shared-data
+      params:
+        - name: context-subdir
+          value: $(params.context-subdir)
+      taskSpec:
+        workspaces:
+          - name: w
+        params:
+          - name: context-subdir
+            type: string
+        steps:
+          - name: py-compile
+            image: docker.io/library/python:3.12-alpine
+            script: |
+              #!/bin/sh
+              set -eu
+              SRC="$(workspaces.w.path)/source/$(params.context-subdir)/src/app.py"
+              python3 -m py_compile "${SRC}"
+              echo "py_compile OK: ${SRC}"
+
     # build-and-push — buildah in `context-subdir` using that dir's Containerfile; tags and pushes $(params.image).
     # Registry credentials: optional workspace `dockerconfig` (.dockerconfigjson) when bound.
     - name: build-and-push
-      runAfter: [fetch-source]
+      runAfter: [test-source]
       workspaces:
         - name: w
           workspace: shared-data

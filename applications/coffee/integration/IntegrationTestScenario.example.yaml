@@ -8,7 +8,7 @@ metadata:
 spec:
   application: coffee
   contexts:
-    - description: Verify coffee-break image prints Hello World
+    - description: Verify coffee-break serves OK on HTTP GET /
       name: application
   resolverRef:
     resolver: git

@@ -1,7 +1,4 @@
-# Konflux Component CR — apply in cluster or register via UI; paths are relative to repo root.
-#
-# spec.containerImage — push destination (no tag in CR). Konflux tags per build; PaC `output-image`
-# must use this repository + a tag (e.g. :{{revision}} on main, :on-pr-{{revision}} for PRs).
+# Konflux Component — build context + Containerfile. Image tag is chosen per build (PaC output-image).
 apiVersion: appstudio.redhat.com/v1alpha1
 kind: Component
 metadata:
