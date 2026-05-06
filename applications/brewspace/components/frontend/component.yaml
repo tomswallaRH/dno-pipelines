@@ -1,0 +1,20 @@
+# This file exists to define the frontend as an independent Konflux Component.
+# Konflux uses this to run a separate build and produce a separate image digest from the API.
+# In Jenkins, multi-component repos commonly split this using custom stages and scripted conditionals.
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: Component
+metadata:
+  name: brewspace-frontend
+  annotations:
+    # This indicates the component participates in container image builds when source changes.
+    # Jenkins generally models this behavior via branch job settings or scripted checks.
+    build.appstudio.openshift.io/pipeline: docker-build
+spec:
+  application: brewspace
+  componentName: brewspace-frontend
+  source:
+    git:
+      url: https://github.com/example-org/dno-automation-services
+      revision: main
+      context: applications/brewspace/components/frontend
+  containerImage: quay.io/example-org/brewspace-frontend

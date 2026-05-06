@@ -1,0 +1,27 @@
+# This file exists to define an integration scenario for the frontend component output.
+# Konflux uses scenarios like this to verify cross-component behavior (frontend can reach API) using Snapshot contents.
+# In Jenkins, cross-component validation is usually handcrafted in one large pipeline and can be harder to reuse.
+apiVersion: appstudio.redhat.com/v1beta1
+kind: IntegrationTestScenario
+metadata:
+  name: brewspace-verify-frontend
+  labels:
+    appstudio.openshift.io/application: brewspace
+spec:
+  application: brewspace
+  # This runs as part of Snapshot validation, after component images are built.
+  contexts:
+    - name: application
+      description: Validate frontend behavior against API health endpoint.
+  resolverRef:
+    resolver: git
+    params:
+      - name: url
+        value: https://github.com/example-org/dno-automation-services
+      - name: revision
+        value: main
+      - name: pathInRepo
+        value: applications/brewspace/integration/verify-frontend.yaml
+  params:
+    - name: expected-text
+      value: API Status: OK

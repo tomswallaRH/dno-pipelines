@@ -1,0 +1,20 @@
+# This file exists to declare one Konflux Component (a buildable unit) for brewspace.
+# Konflux reads this manifest to understand what source path to build and where to publish image output.
+# In Jenkins, this metadata is often embedded in job config or Jenkinsfile logic instead of a first-class API object.
+apiVersion: appstudio.redhat.com/v1alpha1
+kind: Component
+metadata:
+  name: brewspace-api
+  annotations:
+    # Konflux trigger hint: changes under this path should trigger this component's build.
+    # Jenkins usually uses scripted path filters in multibranch jobs.
+    build.appstudio.openshift.io/pipeline: docker-build
+spec:
+  application: brewspace
+  componentName: brewspace-api
+  source:
+    git:
+      url: https://github.com/example-org/dno-automation-services
+      revision: main
+      context: applications/brewspace/components/api
+  containerImage: quay.io/example-org/brewspace-api

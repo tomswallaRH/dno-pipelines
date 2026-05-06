@@ -1,0 +1,27 @@
+# This file exists to define an integration scenario for the API component output.
+# Konflux Integration Service can execute this scenario against a Snapshot so tests run on immutable image digests.
+# In Jenkins, equivalent integration checks are often ad-hoc pipeline stages with mutable tags or shared workspaces.
+apiVersion: appstudio.redhat.com/v1beta1
+kind: IntegrationTestScenario
+metadata:
+  name: brewspace-verify-api
+  labels:
+    appstudio.openshift.io/application: brewspace
+spec:
+  application: brewspace
+  # Konflux runs this scenario after Snapshot creation to validate built component behavior.
+  contexts:
+    - name: application
+      description: Validate the API health endpoint from Snapshot content.
+  resolverRef:
+    resolver: git
+    params:
+      - name: url
+        value: https://github.com/example-org/dno-automation-services
+      - name: revision
+        value: main
+      - name: pathInRepo
+        value: applications/brewspace/integration/verify-api.yaml
+  params:
+    - name: expected-status
+      value: ok

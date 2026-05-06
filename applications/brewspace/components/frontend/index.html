@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Brewspace Frontend</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    .status { margin-top: 1rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Brewspace</h1>
+  <p>Frontend checks API health on page load.</p>
+  <div id="status" class="status">API Status: Checking...</div>
+
+  <script>
+    async function checkApiHealth() {
+      const statusEl = document.getElementById('status');
+      const apiBase = new URLSearchParams(window.location.search).get('api') || 'http://localhost:8080';
+
+      try {
+        const response = await fetch(`${apiBase}/health`);
+        if (!response.ok) {
+          throw new Error(`Unexpected status ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.status === 'ok') {
+          statusEl.textContent = 'API Status: OK';
+        } else {
+          statusEl.textContent = 'API Status: Unexpected Response';
+        }
+      } catch (error) {
+        statusEl.textContent = 'API Status: Unreachable';
+      }
+    }
+
+    checkApiHealth();
+  </script>
+</body>
+</html>

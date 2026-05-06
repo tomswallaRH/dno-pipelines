@@ -1,0 +1,120 @@
+# This file exists to show a realistic Konflux/Tekton build pipeline shape for brewspace.
+# Konflux uses PipelineRuns (often via Pipeline-as-Code) to produce per-component container images.
+# Unlike Jenkins, this is Kubernetes-native, task-oriented, and designed around immutable results and provenance.
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: brewspace-build-and-verify
+  annotations:
+    # Build trigger note: in real Konflux setup, push/PR events from Git create PipelineRuns from PaC templates.
+    # Jenkins triggers are usually configured directly on job definitions.
+    pipelinesascode.tekton.dev/on-event: "[pull_request, push]"
+spec:
+  description: |
+    Build the brewspace API and frontend images, then prepare artifacts that can feed Snapshot-based integration checks.
+
+    Educational notes:
+    - Builds are triggered by PR/push via Pipeline-as-Code templates.
+    - Successful component builds publish image URLs and digests.
+    - Konflux assembles those digests into a Snapshot for integration test scenarios.
+    - The Snapshot is what gets validated and promoted, not mutable tags.
+  params:
+    - name: git-url
+      type: string
+      description: Source repository URL.
+    - name: revision
+      type: string
+      description: Git revision to build.
+    - name: api-image
+      type: string
+      description: Fully qualified output image for brewspace-api.
+    - name: frontend-image
+      type: string
+      description: Fully qualified output image for brewspace-frontend.
+  results:
+    - name: API_IMAGE_URL
+      value: $(tasks.build-api.results.IMAGE_URL)
+    - name: API_IMAGE_DIGEST
+      value: $(tasks.build-api.results.IMAGE_DIGEST)
+    - name: FRONTEND_IMAGE_URL
+      value: $(tasks.build-frontend.results.IMAGE_URL)
+    - name: FRONTEND_IMAGE_DIGEST
+      value: $(tasks.build-frontend.results.IMAGE_DIGEST)
+  tasks:
+    - name: fetch-repository
+      taskRef:
+        resolver: bundles
+        params:
+          - name: bundle
+            value: quay.io/konflux-ci/tekton-catalog/task-git-clone-oci-ta:0.1
+          - name: name
+            value: git-clone-oci-ta
+          - name: kind
+            value: task
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.revision)
+        - name: ociStorage
+          value: $(params.api-image).source
+
+    - name: build-api
+      runAfter:
+        - fetch-repository
+      taskRef:
+        resolver: bundles
+        params:
+          - name: bundle
+            value: quay.io/konflux-ci/tekton-catalog/task-buildah-oci-ta:0.9
+          - name: name
+            value: buildah-oci-ta
+          - name: kind
+            value: task
+      params:
+        - name: IMAGE
+          value: $(params.api-image)
+        - name: DOCKERFILE
+          value: applications/brewspace/components/api/Containerfile
+        - name: CONTEXT
+          value: applications/brewspace/components/api
+        # Image is produced here (URL + digest results); Konflux uses digest for Snapshot membership.
+
+    - name: build-frontend
+      runAfter:
+        - fetch-repository
+      taskRef:
+        resolver: bundles
+        params:
+          - name: bundle
+            value: quay.io/konflux-ci/tekton-catalog/task-buildah-oci-ta:0.9
+          - name: name
+            value: buildah-oci-ta
+          - name: kind
+            value: task
+      params:
+        - name: IMAGE
+          value: $(params.frontend-image)
+        - name: DOCKERFILE
+          value: applications/brewspace/components/frontend/Containerfile
+        - name: CONTEXT
+          value: applications/brewspace/components/frontend
+        # Second image is produced here; both image digests are later combined into one Snapshot.
+
+    - name: summarize-for-snapshot
+      runAfter:
+        - build-api
+        - build-frontend
+      taskSpec:
+        results:
+          - name: snapshot-hint
+        steps:
+          - name: record
+            image: registry.access.redhat.com/ubi9/ubi-minimal
+            script: |
+              echo "API: $(tasks.build-api.results.IMAGE_URL)@$(tasks.build-api.results.IMAGE_DIGEST)" > /tmp/summary.txt
+              echo "FRONTEND: $(tasks.build-frontend.results.IMAGE_URL)@$(tasks.build-frontend.results.IMAGE_DIGEST)" >> /tmp/summary.txt
+              cat /tmp/summary.txt
+              cp /tmp/summary.txt $(results.snapshot-hint.path)
+      # Snapshot creation is handled by Konflux controllers/integration service after build completion,
+      # while this task simply makes image outputs explicit for humans and downstream tooling.
