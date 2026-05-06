@@ -12,5 +12,5 @@ spec:
     git:
       url: https://github.com/tomswallaRH/dno-automation-services.git
       revision: main
-      context: applications/coffee/components/coffee-break
+      context: .
       dockerfileUrl: Containerfile

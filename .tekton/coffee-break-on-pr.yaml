@@ -21,6 +21,7 @@ metadata:
     pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch == "main"
       && ( "applications/coffee/components/coffee-break/***".pathChanged()
       || "applications/coffee/pipelines/coffee-break-pipeline.yaml".pathChanged()
+      || "Containerfile".pathChanged()
       || ".tekton/coffee-break-on-pr.yaml".pathChanged() )
   labels:
     appstudio.openshift.io/application: coffee
@@ -38,8 +39,9 @@ spec:
       value: quay.io/redhat-user-workloads/sfathii-tenant/coffee/coffee-break:on-pr-{{revision}}
     - name: dockerfile
       value: Containerfile
+    # Repo root so buildah CONTEXT matches COPY paths in /Containerfile (Konflux catalog default is ".").
     - name: path-context
-      value: applications/coffee/components/coffee-break
+      value: .
     - name: image-expires-after
       value: 5d
     - name: skip-checks

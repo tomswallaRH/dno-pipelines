@@ -2,13 +2,14 @@
 #
 # Source of truth for *what* gets built:
 #   - Git: params `git-url` + `revision` (Konflux PaC sets these from the webhook via {{source_url}}, {{revision}}).
-#   - Context on disk after clone: $(workspaces.shared-data.path)/source/<context-subdir>
-#   - Containerfile: <context-subdir>/$(params.containerfile) — default `Containerfile` under
-#     applications/coffee/components/coffee-break/
+#   - Clone root: $(workspaces.shared-data.path)/source/
+#   - py_compile target: <context-subdir>/src/app.py (component source path).
+#   - OCI build: repo-root $(params.containerfile) (default `Containerfile` at repository root) so
+#     Konflux `docker-build-oci-ta` with `path-context` `.` matches buildah context + COPY paths.
 #
-# Konflux CI default: `.tekton/coffee-break-on-*.yaml` runs the **catalog** bundle `docker-build-oci-ta`
-# with the same path + dockerfile as the defaults here (`path-context` / `dockerfile` ↔ `context-subdir` /
-# `containerfile`). If you change defaults, update PaC params and `component.yaml` accordingly.
+# Konflux CI: `.tekton/coffee-break-on-*.yaml` uses catalog `docker-build-oci-ta` with `path-context: .`
+# and `dockerfile: Containerfile` aligned with `component.yaml`. If you change that contract, update
+# the root `Containerfile` COPY paths and this Pipeline.
 #
 # This file can also be referenced directly (e.g. git `pipelineRef` resolver) for manual PipelineRuns.
 ---
@@ -104,7 +105,7 @@ spec:
               python3 -m py_compile "${SRC}"
               echo "py_compile OK: ${SRC}"
 
-    # build-and-push — buildah in `context-subdir` using that dir's Containerfile; tags and pushes $(params.image).
+    # build-and-push — buildah at clone root using repo-root Containerfile; tags and pushes $(params.image).
     # Registry credentials: optional workspace `dockerconfig` (.dockerconfigjson) when bound.
     - name: build-and-push
       runAfter: [test-source]
@@ -147,9 +148,9 @@ spec:
                 mkdir -p /root/.docker
                 cp "${DOCKERCFG}/config.json" /root/.docker/config.json
               fi
-              CTX="$(workspaces.w.path)/source/$(params.context-subdir)"
+              SRCROOT="$(workspaces.w.path)/source"
               buildah bud --layers --format docker \
-                -f "${CTX}/$(params.containerfile)" \
+                -f "${SRCROOT}/$(params.containerfile)" \
                 -t "$(params.image)" \
-                "${CTX}"
+                "${SRCROOT}"
               buildah push "$(params.image)"
